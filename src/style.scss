@@ -1,0 +1,116 @@
+@font-face {
+  font-family: Nahid;
+  src: url(./Nahid.woff) format("woff");
+}
+
+html, body {
+  direction: rtl;
+  font-family: Nahid, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+}
+
+h1 {
+  margin: 0;
+  font-size: inherit;
+}
+
+button {
+  font: inherit;
+  border-radius: 5px;
+  padding: 0.25rem 0.5rem;
+  transition: background-color 0.2s;
+  cursor: pointer;
+  color: #eeeeee;
+  border-width: 1px;
+  border-style: solid;
+}
+
+button.start {
+  background-color: #00adb5;
+  border-color: #008e95
+
+  &:hover,
+  &:active,
+  &:focus {
+    background-color: #00bdc5;
+  }
+
+  &[disabled] {
+    background-color: #999;
+    border-color: #666;
+    cursor: not-allowed;
+  }
+}
+
+button.dismiss {
+  background-color: #cccccc;
+  color: #333;
+  border-style: none;
+
+  &:hover,
+  &:active,
+  &:focus {
+    background-color: #dddddd;
+  }
+}
+
+div.frame {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #eeeeee;
+  color: #393e46;
+}
+
+div.window {
+  width: calc(100% - 4rem);
+  max-width: 720px;
+  background-color: #aad8d3;
+  box-shadow: 6px 6px 1px rgba(0, 0, 0, 0.3);
+  margin: 2rem 0 3rem 0;
+}
+
+div.header {
+  padding: 0.25rem 0.5rem;
+  border-bottom: 0.25rem solid #00adb5;
+  font-size: 1.5rem;
+  background-color: #393e46;
+  color: #eeeeee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  & > span {
+    font-size: 1rem;
+    padding: 6px;
+    border-radius: 4px;
+    line-height: 1rem;
+  }
+}
+
+div.content {
+  width: 90%;
+  margin: 0 auto 1rem auto;
+}
+
+div.error {
+  max-height: 0;
+  transition: max-height 0.8s ease;
+  overflow: hidden;
+
+  &.show {
+    max-height: 8rem;
+  }
+
+  & > div {
+    color: #eeeeee;
+    background-color: #cf3349;
+    padding: 0.75rem 1rem;
+    margin-top: 1.5rem;
+    border-radius: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
