@@ -77,9 +77,6 @@ export default {
         pure_getters: true,
         passes: 3,
       },
-      mangle: {
-        properties: true
-      },
     }),
     scss({
       output: css => styles.push(css),
