@@ -34,7 +34,7 @@ async function template({ attributes, files, meta, publicPath, title }) {
       `<link href="${publicPath}${fileName}" rel="stylesheet"${link_attrs}>`)
     .concat([
       "<link rel=\"icon\" href=\"data:;base64,iVBORw0KGgo=\">",
-      `<style rel="stylesheet">${styles.shift()}</style>`,
+      `<style>${styles.shift()}</style>`,
     ])
     .join("");
 
