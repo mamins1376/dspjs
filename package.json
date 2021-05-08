@@ -6,8 +6,8 @@
   "scripts": {
     "prestart": "mkdir -p debug && touch debug/index.html",
     "start": "rollup -c -w & (cd debug && browser-sync -w)",
-    "prepublish": "env BUILD=production rollup -c",
-    "publish": "",
+    "preupload": "env BUILD=production rollup -c",
+    "upload": "git subtree push -P dist origin gh-pages",
     "clean": "rm -rf dist debug"
   },
   "repository": {
