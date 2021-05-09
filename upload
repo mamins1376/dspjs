@@ -1,0 +1,16 @@
+#!/bin/sh
+# vim:set et ts=4 sts=4 sw=4:
+
+set -e
+
+tmp=$(mktemp -d)
+git="git --git-dir=$tmp/.git --work-tree=$tmp"
+
+git worktree add --detach --no-checkout $tmp
+$git symbolic-ref HEAD refs/heads/gh-pages
+DIST_DIR=$tmp rollup -c
+$git add -A
+$git commit --allow-empty-message --no-edit
+$git push -f origin gh-pages
+git worktree remove -f $tmp
+git branch -D gh-pages

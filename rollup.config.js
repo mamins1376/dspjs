@@ -4,7 +4,7 @@ import scss from "rollup-plugin-scss";
 import html, { makeHtmlAttributes } from "@rollup/plugin-html";
 import copy from "rollup-plugin-copy";
 
-const P = process.env.BUILD === "production";
+const P = !!process.env.DIST_DIR;
 
 var terser, sourcemaps;
 terser = sourcemaps = _ => {};
@@ -15,7 +15,7 @@ if (P) {
   sourcemaps = require("rollup-plugin-sourcemaps");
 }
 
-const dir = P ? "dist" : "debug";
+const dir = P ? process.env.DIST_DIR : "debug";
 
 let styles = [];
 
