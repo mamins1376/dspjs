@@ -3,6 +3,7 @@ import { nodeResolve } from "@rollup/plugin-node-resolve";
 import scss from "rollup-plugin-scss";
 import html, { makeHtmlAttributes } from "@rollup/plugin-html";
 import copy from "rollup-plugin-copy";
+import commonjs from "@rollup/plugin-commonjs";
 
 const P = !!process.env.DIST_DIR;
 
@@ -25,23 +26,28 @@ async function template({ attributes, files, meta, publicPath, title }) {
     .map(makeHtmlAttributes);
 
   const scripts = (files.js || [])
-    .map(({ fileName }) =>
-      `<script src="${publicPath}${fileName}"${script_attrs}></script>`)
-    .join("");
+    .map(({ fileName }) => fileName)
+    .filter(file => file !== "worklet.js")
+    .map(file => `<script src="${publicPath}${file}"${script_attrs}></script>`)
+    .join("\n    ");
 
   const links = (files.css || [])
     .map(({ fileName }) =>
       `<link href="${publicPath}${fileName}" rel="stylesheet"${link_attrs}>`)
     .concat([
       "<link rel=\"icon\" href=\"data:;base64,iVBORw0KGgo=\">",
-      `<style>${styles.shift()}</style>`,
     ])
-    .join("");
+    .join("\n    ");
+
+  const style_elements = styles
+    .map(style => `<style>\n${style}\n    </style>`)
+    .join("\n    ");
+  styles = [];
 
   const metas = meta
     .map(makeHtmlAttributes)
     .map(attrs => `<meta${attrs}>`)
-    .join("");
+    .join("\n    ");
 
   const html = `<!DOCTYPE html>
 <html${html_attrs}>
@@ -49,6 +55,7 @@ async function template({ attributes, files, meta, publicPath, title }) {
     ${metas}
     <title>${title}</title>
     ${links}
+    ${style_elements}
   </head>
   <body>
     ${scripts}
@@ -59,15 +66,15 @@ async function template({ attributes, files, meta, publicPath, title }) {
 }
 
 export default {
-  input: "src/index.tsx",
+  input: ["src/index.tsx", "src/worklet.js"],
   output: {
     dir,
-    format: "iife",
     sourcemap: !P,
   },
   plugins: [
     typescript(),
     nodeResolve(),
+    commonjs(),
     terser({
       toplevel: true,
       ecma: 2016,

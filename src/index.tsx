@@ -1,11 +1,13 @@
 import "./style.scss";
 
-import { h, render } from "preact";
-import { useState, useRef, useCallback, useEffect, StateUpdater } from "preact/hooks";
+import Processor from "./processor";
 
-const enum State { Ready, Active, Failed };
+import { h, Ref, render } from "preact";
+import { useState, useRef, useCallback, useEffect, StateUpdater, useLayoutEffect } from "preact/hooks";
+import "webrtc-adapter";
 
-const old_browser = "مرورگر شما قدیمیست و نیاز به به‌روز رسانی دارد.";
+const unsupported = "متأسفانه مروگر شما پشتیبانی نمی‌شود. لطفاً از " +
+  "فایرفاکس ۷۶ یا جدیدتر، و یا کروم ۶۵ یا جدیدتر استفاده کنید.";
 
 const track_criteria = {
   audio: {
@@ -15,19 +17,12 @@ const track_criteria = {
   }
 };
 
-const modes = {
-  [State.Ready]: { label: "آماده", color: "#0083e5", },
-  [State.Active]: { label: "فعال", color: "#32c252", },
-  [State.Failed]: { label: "خطا", color: "#cf3349", },
-};
-
-let failure = "";
-
 render(<App />, document.body);
 
 function App() {
-  const [state, setState] = useState(State.Ready);
-  const startDSP = useDSP({ state, setState });
+  const [active, setActive] = useState(false);
+  const [failure, setFailure] = useState("");
+  const startDSP = useDSP(active, setActive, setFailure);
 
   return (
     <div class="frame">
@@ -35,11 +30,11 @@ function App() {
         <div class="header">
           <h1>پردازنده سیگنال</h1>
 
-          <Mode state={state} />
+          <Indicator active={active} failure={failure} />
         </div>
 
         <div class="content">
-          <ErrorView { ...{ state, setState } } />
+          <ErrorView failure={failure} setFailure={setFailure} />
 
           <p>
             با این برنامه می‌توانید صدای خود را به صورت زنده آهسته کنید. با این کار،
@@ -48,7 +43,7 @@ function App() {
 
           <div style="text-align: left">
             <button class="start" onClick={startDSP}
-              disabled={state !== State.Ready}>شروع</button>
+              disabled={!!failure}>شروع</button>
           </div>
         </div>
       </div>
@@ -56,83 +51,140 @@ function App() {
   );
 };
 
-interface StateProps {
-  state: State;
-  setState: StateUpdater<State>;
-}
-
-function Mode({ state }: Pick<StateProps, "state">) {
-  let [mode, setMode] = useState(state);
-
-  if (mode !== state && modes.hasOwnProperty(state)) {
-    mode = state;
-    setMode(state);
+function Indicator({ active, failure }: { active: Boolean, failure: string }) {
+  let label, color;
+  if (failure) {
+    label = "خطا";
+    color = "#cf3349";
+  } else if (active) {
+    label = "فعال";
+    color = "#32c252";
+  } else {
+    label = "آماده";
+    color = "#0083e5";
   }
 
-  const { label, color } = modes[mode];
   return <span style={`background-color: ${color}`}>{label}</span>;
 };
 
-function ErrorView({ state, setState }: StateProps) {
-  const classes = "error" + (state === State.Failed ? " show" : "");
-  const onClick = () => setState(State.Ready);
+interface ErrorViewProps {
+  failure: string;
+  setFailure: StateUpdater<string>;
+}
+
+function ErrorView({ failure, setFailure }: ErrorViewProps) {
+  const roller: Ref<HTMLDivElement> = useRef();
+  const [height, setHeight] = useState(0);
+  const [display, setDisplay] = useState(failure);
+
+  if (failure)
+    setDisplay(failure);
+
+  useLayoutEffect(() => {
+    if (roller.current)
+      setHeight(failure ? roller.current.offsetHeight : 0);
+  }, [roller, failure, setHeight]);
+
   return (
-    <div class={classes}>
-      <div>
-        <span><b>خطا!</b> {failure}</span>
-        <button class="dismiss" onClick={onClick}>باشه</button>
+    <div class="error" style={`max-height: ${height}px`}>
+      <div ref={roller} class="roller">
+        <div>
+          <span><b>خطا!</b> {display || failure}</span>
+          <button class="dismiss" onClick={() => setFailure("")}>باشه</button>
+        </div>
       </div>
     </div>
   );
 };
 
-function useDSP({ state, setState }: StateProps) {
-  const context = useAudioContext(setState);
-  const [mic, openMic] = useMic({ state, setState });
+function useDSP(
+  active: Boolean,
+  setActive: StateUpdater<Boolean>,
+  setFailure: StateUpdater<string>
+) {
+  const context = useAudioContext(setFailure);
+  const stretcher = useStretcher(context, setFailure);
+  const [mic, openMic] = useMic(setFailure);
 
   useEffect(() => {
-    if (state === State.Ready && context && mic) {
-      context.createMediaStreamSource(mic)
-        .connect(context.destination);
-      setState(State.Active);
+    if (!active && context && stretcher && mic) {
+      context.createMediaStreamSource(mic).connect(stretcher);
+      stretcher.connect(context.destination);
+      setActive(true);
     }
-  }, [context, mic, state, setState]);
+  }, [active, context, stretcher, mic, setActive]);
 
   return openMic;
 };
 
-function useAudioContext(setState: StateUpdater<State>) {
+function useAudioContext(setFailure: StateUpdater<string>) {
   const ref = useRef(null);
   if (ref.current === null) {
-    if (window.AudioContext) {
+    if (window.AudioContext)
       ref.current = new window.AudioContext();
-    } else {
-      setState(State.Failed);
-      failure = old_browser;
+    else {
+      setFailure(unsupported);
+      console.error("window.AudioContext is missing");
     }
   }
   return ref.current;
 };
 
-function useMic({ state, setState }: StateProps) {
+function useStretcher(
+  context: AudioContext | null,
+  setFailure: StateUpdater<string>,
+): AudioWorkletNode | ScriptProcessorNode | null {
+  let node = useRef(null);
+
+  useEffect(() => {
+    if (window.AudioWorkletNode) {
+      if (!node.current && context) {
+        context.audioWorklet.addModule("worklet.js")
+          .then(_ => node.current = new AudioWorkletNode(context, "custom-worklet"))
+          .catch(e => {
+            setFailure(`نمیتوان پردازنده را اجرا کرد (علت: ${e.message})`);
+            console.error("audioWorklet.addModule failed:", e);
+          });
+      }
+    } else if (context.createScriptProcessor) {
+      console.warn("AudioWorkletNode is missing, using ScriptProcessorNode");
+      node.current = context.createScriptProcessor();
+      let processors = [0, 0].map(_ => new Processor(context.sampleRate));
+      node.current.addEventListener("audioprocess", (event: any) => {
+        let { inputBuffer, outputBuffer } = event;
+        for (let c = 0; c < outputBuffer.numberOfChannels; c++) {
+          const x = inputBuffer.getChannelData(c);
+          const y = outputBuffer.getChannelData(c);
+          processors[c].process(x, y);
+        }
+      });
+    } else {
+      setFailure(unsupported);
+      console.error("AudioWorkletNode and ScriptProcessorNode are missing");
+    }
+  }, [node, context, setFailure]);
+
+  return node.current;
+}
+
+function useMic(setFailure: StateUpdater<string>) {
   const [stream, setStream] = useState(null);
 
   const openMic = useCallback(() => {
     if (stream === null) {
-      if (navigator.mediaDevices) {
-        navigator.mediaDevices
-          .getUserMedia(track_criteria)
+      if (navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia(track_criteria)
           .then(setStream)
-          .catch(() => {
-            setState(State.Failed);
-            failure = "برای استفاده از این برنامه، به دسترسی صدا نیاز است.";
+          .catch((e: any) => {
+            setFailure("برای استفاده از این برنامه، به دسترسی صدا نیاز است.")
+            console.error("getUserMedia failed:", e);
           });
       } else {
-        setState(State.Failed);
-        failure = old_browser;
+        setFailure(unsupported);
+        console.error("navigator.mediaDevices is missing");
       }
     }
-  }, [stream, state, setState]);
+  }, [stream, setFailure]);
 
   return [stream, openMic];
 };

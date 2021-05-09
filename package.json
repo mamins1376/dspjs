@@ -6,8 +6,7 @@
   "scripts": {
     "prestart": "mkdir -p debug && touch debug/index.html",
     "start": "rollup -c -w & (cd debug && browser-sync -w)",
-    "upload": "sh upload",
-    "clean": "rm -rf dist debug"
+    "upload": "sh upload"
   },
   "repository": {
     "type": "git",
@@ -27,6 +26,7 @@
   },
   "homepage": "https://mamins1376.github.io/dspjs",
   "dependencies": {
+    "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-html": "^0.2.3",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "@rollup/plugin-typescript": "^8.2.1",
@@ -37,6 +37,7 @@
     "rollup-plugin-scss": "^2.6.1",
     "rollup-plugin-sourcemaps": "^0.6.3",
     "rollup-plugin-terser": "^7.0.2",
-    "terser": "^5.7.0"
+    "terser": "^5.7.0",
+    "webrtc-adapter": "^8.0.0"
   }
 }
