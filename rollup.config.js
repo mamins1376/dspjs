@@ -27,7 +27,6 @@ async function template({ attributes, files, meta, publicPath, title }) {
 
   const scripts = (files.js || [])
     .map(({ fileName }) => fileName)
-    .filter(file => file !== "worklet.js")
     .map(file => `<script src="${publicPath}${file}"${script_attrs}></script>`)
     .join("\n    ");
 
@@ -65,11 +64,12 @@ async function template({ attributes, files, meta, publicPath, title }) {
   return P ? html.replace(/\n */g, "") : html;
 }
 
-export default {
-  input: ["src/index.tsx", "src/worklet.js"],
+const config = is_index => ({
+  input: `src/${ is_index ? "index.tsx" : "worklet.js" }`,
   output: {
     dir,
     sourcemap: !P,
+    format: "iife",
   },
   plugins: [
     typescript(),
@@ -85,12 +85,12 @@ export default {
         passes: 3,
       },
     }),
-    scss({
+    is_index ? scss({
       output: css => styles.push(css),
       outputStyle: P ? "compressed" : "expanded",
-    }),
+    }) : null,
     sourcemaps(),
-    html({
+    is_index ? html({
       attributes: { html: { lang: "fa" } },
       meta: [
         { charset: "utf-8" },
@@ -98,13 +98,15 @@ export default {
       ],
       title: "DSP Project",
       template,
-    }),
-    copy({
+    }) : null,
+    is_index ? copy({
       targets: [{
         src: "node_modules/nahid-font/dist/Nahid.woff",
         dest: `${dir}/`
       }],
       copyOnce: true,
-    }),
+    }): null,
   ]
-};
+});
+
+export default [config(true), config(false)];
