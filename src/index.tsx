@@ -85,11 +85,12 @@ function ErrorView({ failure, setFailure }: ErrorViewProps) {
       setHeight(failure ? roller.current.offsetHeight : 0);
   }, [roller, failure, setHeight]);
 
+  const inner = { __html: display || failure };
   return (
     <div class="error" style={`max-height: ${height}px`}>
       <div ref={roller} class="roller">
         <div>
-          <span><b>خطا!</b> {display || failure}</span>
+          <div><b>خطا!</b> <span dangerouslySetInnerHTML={inner} /></div>
           <button class="dismiss" onClick={() => setFailure("")}>باشه</button>
         </div>
       </div>
@@ -102,7 +103,7 @@ function useDSP(
   setActive: StateUpdater<Boolean>,
   setFailure: StateUpdater<string>
 ) {
-  const context = useAudioContext(setFailure);
+  const [context, makeContext] = useAudioContext(setFailure);
   const stretcher = useStretcher(context, setFailure);
   const [mic, openMic] = useMic(setFailure);
 
@@ -114,20 +115,29 @@ function useDSP(
     }
   }, [active, context, stretcher, mic, setActive]);
 
+  const startDSP = useCallback(() => {
+    makeContext();
+    openMic();
+  }, [makeContext, openMic]);
+
   return openMic;
 };
 
 function useAudioContext(setFailure: StateUpdater<string>) {
   const ref = useRef(null);
-  if (ref.current === null) {
-    if (window.AudioContext)
-      ref.current = new window.AudioContext();
-    else {
-      setFailure(unsupported);
-      console.error("window.AudioContext is missing");
+
+  const makeContext = useCallback(() => {
+    if (ref.current === null) {
+      if (window.AudioContext)
+        ref.current = new window.AudioContext();
+      else {
+        setFailure(unsupported);
+        console.error("window.AudioContext is missing");
+      }
     }
-  }
-  return ref.current;
+  }, [setFailure])
+
+  return [ref.current, makeContext];
 };
 
 function useStretcher(
@@ -172,7 +182,7 @@ function useMic(setFailure: StateUpdater<string>) {
 
   const openMic = useCallback(() => {
     if (stream === null) {
-      if (navigator.mediaDevices.getUserMedia) {
+      if (navigator.mediaDevices?.getUserMedia) {
         navigator.mediaDevices.getUserMedia(track_criteria)
           .then(setStream)
           .catch((e: any) => {
@@ -180,8 +190,14 @@ function useMic(setFailure: StateUpdater<string>) {
             console.error("getUserMedia failed:", e);
           });
       } else {
-        setFailure(unsupported);
-        console.error("navigator.mediaDevices is missing");
+        if (isSecureContext === false) {
+          setFailure("مطمئن شوید این صفحه با پروتکل امن "
+            + "(http<strong>s</strong>) بارگزاری شده است.");
+          console.error("insecure context");
+        } else {
+          setFailure(unsupported);
+          console.error("navigator.mediaDevices is missing");
+        }
       }
     }
   }, [stream, setFailure]);
