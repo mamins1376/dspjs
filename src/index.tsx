@@ -3,7 +3,13 @@ import "./style.scss";
 import Processor from "./processor";
 
 import { h, Ref, render } from "preact";
-import { useState, useRef, useCallback, useEffect, StateUpdater, useLayoutEffect } from "preact/hooks";
+import {
+  useState,
+  useRef,
+  useCallback,
+  StateUpdater,
+  useLayoutEffect,
+} from "preact/hooks";
 import "webrtc-adapter";
 
 const unsupported = "متأسفانه مروگر شما پشتیبانی نمی‌شود. لطفاً از " +
@@ -107,60 +113,56 @@ function useDSP(
   const stretcher = useStretcher(context, setFailure);
   const [mic, openMic] = useMic(setFailure);
 
-  useEffect(() => {
-    if (!active && context && stretcher && mic) {
-      context.createMediaStreamSource(mic).connect(stretcher);
-      stretcher.connect(context.destination);
-      setActive(true);
-    }
-  }, [active, context, stretcher, mic, setActive]);
+  if (!active && context && stretcher && mic) {
+    context.createMediaStreamSource(mic).connect(stretcher);
+    stretcher.connect(context.destination);
+    setActive(true);
+  }
 
   const startDSP = useCallback(() => {
     makeContext();
     openMic();
   }, [makeContext, openMic]);
 
-  return openMic;
+  return startDSP;
 };
 
 function useAudioContext(setFailure: StateUpdater<string>) {
-  const ref = useRef(null);
+  const [me, setMe] = useState(null);
 
   const makeContext = useCallback(() => {
-    if (ref.current === null) {
-      if (window.AudioContext)
-        ref.current = new window.AudioContext();
-      else {
+    if (!me) {
+      if (window.AudioContext) {
+        setMe(new window.AudioContext());
+      } else {
         setFailure(unsupported);
         console.error("window.AudioContext is missing");
       }
     }
   }, [setFailure])
 
-  return [ref.current, makeContext];
+  return [me, makeContext];
 };
 
 function useStretcher(
   context: AudioContext | null,
   setFailure: StateUpdater<string>,
 ): AudioWorkletNode | ScriptProcessorNode | null {
-  let node = useRef(null);
+  let [me, setMe] = useState(null);
 
-  useEffect(() => {
+  if (!me && context) {
     if (window.AudioWorkletNode) {
-      if (!node.current && context) {
-        context.audioWorklet.addModule("worklet.js")
-          .then(_ => node.current = new AudioWorkletNode(context, "custom-worklet"))
-          .catch(e => {
-            setFailure(`نمیتوان پردازنده را اجرا کرد (علت: ${e.message})`);
-            console.error("audioWorklet.addModule failed:", e);
-          });
-      }
+      context.audioWorklet.addModule("worklet.js")
+        .then(_ => setMe(new AudioWorkletNode(context, "custom-worklet")))
+        .catch(e => {
+          setFailure(`نمیتوان پردازنده را اجرا کرد (علت: ${e.message})`);
+          console.error("audioWorklet.addModule failed:", e);
+        });
     } else if (context.createScriptProcessor) {
       console.warn("AudioWorkletNode is missing, using ScriptProcessorNode");
-      node.current = context.createScriptProcessor();
+      const node = context.createScriptProcessor();
       let processors = [0, 0].map(_ => new Processor(context.sampleRate));
-      node.current.addEventListener("audioprocess", (event: any) => {
+      node.addEventListener("audioprocess", (event: any) => {
         let { inputBuffer, outputBuffer } = event;
         for (let c = 0; c < outputBuffer.numberOfChannels; c++) {
           const x = inputBuffer.getChannelData(c);
@@ -168,13 +170,16 @@ function useStretcher(
           processors[c].process(x, y);
         }
       });
+      setMe(node);
     } else {
       setFailure(unsupported);
       console.error("AudioWorkletNode and ScriptProcessorNode are missing");
     }
-  }, [node, context, setFailure]);
+  } else if (!context && me) {
+    setMe(null);
+  }
 
-  return node.current;
+  return me;
 }
 
 function useMic(setFailure: StateUpdater<string>) {
