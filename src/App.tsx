@@ -5,40 +5,58 @@ import {
   useRef,
   useMemo,
   useCallback,
-  StateUpdater,
   useLayoutEffect,
+  StateUpdater,
 } from "preact/hooks";
 
 import { h, Ref } from "preact";
 
+const enum AppState { Ready, Opened, Started }
+
 export default function App() {
   const [failure, setFailure] = useState("");
-  const [active, setActive] = useState(false);
+  const [state, setState] = useState(AppState.Ready);
   const audio = useMemo(() => new Audio(), []);
 
   const toggle = useCallback(async () => {
-    if (!audio.is_open) {
-      try {
-        await audio.open();
-      } catch (error) {
-        if (typeof error === "string") {
-          setFailure(error);
-        } else if (error?.name === "NotAllowedError") {
-          setFailure("برای استفاده از این برنامه، دسترسی به میکروفون لازم است.");
-        } else {
-          setFailure(error.message)
-          console.log(error);
+    if (audio.is_started) {
+      audio.stop()
+      setState(AppState.Opened);
+    } else {
+      if (!audio.is_open) {
+        try {
+          await audio.open();
+        } catch (error) {
+          if (typeof error === "string") {
+            setFailure(error);
+          } else if (error?.name === "NotAllowedError") {
+            setFailure("برای استفاده از این برنامه، دسترسی به میکروفون لازم است.");
+          } else {
+            setFailure(error.message)
+            console.log(error);
+          }
         }
       }
+
+      audio.start();
+      setState(AppState.Started);
     }
+  }, []);
 
-    if (audio.is_started)
-      audio.stop()
-    else
-      audio.start()
+  const panic = useCallback(async () => {
+    if (audio.is_started) {
+      audio.panic();
+    } else {
+      await audio.close();
+      setState(AppState.Ready);
+    }
+  }, []);
 
-    setActive(audio.is_started);
-  }, [audio, setFailure, setActive]);
+  const [b1c, b1l, b2c, b2l] = {
+    [AppState.Ready]: ["start", "شروع", null, null],
+    [AppState.Opened]: ["panic", "ادامه", "stop", "بستن"],
+    [AppState.Started]: ["stop", "توقف", "panic", "ساکت کردن"],
+  }[state];
 
   return (
     <div class="frame">
@@ -46,7 +64,7 @@ export default function App() {
         <div class="header">
           <h1>پردازنده سیگنال</h1>
 
-          <Indicator active={active} failure={failure} />
+          <Indicator active={state === AppState.Started} failure={failure} />
         </div>
 
         <div class="content">
@@ -58,18 +76,8 @@ export default function App() {
           </p>
 
           <div class="buttons">
-            <button
-              class={ active ? "stop" : "start" }
-              onClick={toggle}
-              disabled={!!failure}
-            >{ active ? "توقف" : (audio.is_open ? "ادامه" : "شروع") }</button>
-
-            <button
-              style={ !active && "display: none;" }
-              class="panic"
-              onClick={() => audio.panic()}
-              disabled={!!failure}
-            >ساکت کردن</button>
+            <button class={b1c} onClick={toggle} disabled={!!failure} >{b1l}</button>
+            {b2l && !failure && <button class={b2c} onClick={panic} >{b2l}</button>}
           </div>
         </div>
       </div>
