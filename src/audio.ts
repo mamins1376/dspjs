@@ -46,13 +46,15 @@ export default class Audio {
     if (!this.effect) {
       if (this.context.audioWorklet?.addModule && AudioWorkletNode) {
         await this.context.audioWorklet.addModule("worklet.js");
-        this.effect = new AudioWorkletNode(this.context, "custom-processor");
+        const effect = new AudioWorkletNode(this.context, "effect-processor");
+        effect.addEventListener("panic", () => effect.port.postMessage("panic"));
 
+        this.effect = effect;
       } else {
         let processors = [0, 0].map(_ => new Processor(this.context.sampleRate));
+        const effect = this.context.createScriptProcessor();
 
-        this.effect = this.context.createScriptProcessor();
-        this.effect.addEventListener("audioprocess", (event: any) => {
+        effect.addEventListener("audioprocess", (event: any) => {
           let { inputBuffer, outputBuffer } = event;
           for (let c = 0; c < outputBuffer.numberOfChannels; c++) {
             const x = inputBuffer.getChannelData(c);
@@ -60,6 +62,10 @@ export default class Audio {
             processors[c].process(x, y);
           }
         });
+
+        effect.addEventListener("panic", () => processors.forEach(p => p.panic()));
+
+        this.effect = effect;
       }
     }
 
@@ -78,6 +84,10 @@ export default class Audio {
     }
   }
 
+  panic() {
+    this.effect?.dispatchEvent(new Event("panic"));
+  }
+
   stop() {
     if (this._is_started) {
       this._is_started = false;
@@ -94,13 +104,17 @@ export default class Audio {
     if (this._is_started)
       this.stop();
 
-    if (this.context)
-      await this.context.close();
-
-    delete this.context;
+    if (this.stream)
+      this.stream.getTracks()
+        .forEach(track => track.stop());
     delete this.stream;
+
     delete this.source;
     delete this.effect;
+
+    if (this.context)
+      await this.context.close();
+    delete this.context;
 
     this._is_open = false;
   }

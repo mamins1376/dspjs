@@ -20,57 +20,6 @@ h1 {
   font-size: inherit;
 }
 
-button {
-  font: inherit;
-  border-radius: 5px;
-  padding: 0.25rem 0.5rem;
-  transition: background-color 0.2s;
-  cursor: pointer;
-  color: #eeeeee;
-  border-width: 1px;
-  border-style: solid;
-
-  &[disabled] {
-    background-color: #999;
-    border-color: #666;
-    cursor: not-allowed;
-  }
-}
-
-button.start {
-  background-color: #00adb5;
-  border-color: var(--color-blue);
-
-  &:hover,
-  &:active,
-  &:focus {
-    background-color: #00bdc5;
-  }
-}
-
-button.stop {
-  background-color: #cf3349;
-  border-color: var(--color-red);
-
-  &:hover,
-  &:active,
-  &:focus {
-    background-color: #ea2f4a;
-  }
-}
-
-button.dismiss {
-  background-color: #cccccc;
-  color: #333;
-  border-style: none;
-
-  &:hover,
-  &:active,
-  &:focus {
-    background-color: #dddddd;
-  }
-}
-
 div.frame {
   height: 100vh;
   display: flex;
@@ -127,5 +76,76 @@ div.error {
       justify-content: space-between;
       align-items: center;
     }
+  }
+}
+
+div.buttons {
+  display: flex;
+  flex-direction: row-reverse;
+
+  button {
+    margin-right: 1rem;
+  }
+}
+
+button {
+  font: inherit;
+  border-radius: 5px;
+  padding: 0.25rem 0.5rem;
+  transition: background-color 0.2s;
+  cursor: pointer;
+  color: #eeeeee;
+  border-width: 1px;
+  border-style: solid;
+
+  &[disabled] {
+    background-color: #999;
+    border-color: #666;
+    cursor: not-allowed;
+  }
+}
+
+button.start {
+  background-color: #00adb5;
+  border-color: var(--color-blue);
+
+  &:hover,
+  &:active,
+  &:focus {
+    background-color: #00bdc5;
+  }
+}
+
+button.stop {
+  background-color: #cf3349;
+  border-color: var(--color-red);
+
+  &:hover,
+  &:active,
+  &:focus {
+    background-color: #ea2f4a;
+  }
+}
+
+button.panic {
+  background-color: #a59412;
+  border-color: #9a8208;
+
+  &:hover,
+  &:active,
+  &:focus {
+    background-color: #b2a621;
+  }
+}
+
+button.dismiss {
+  background-color: #cccccc;
+  color: #333;
+  border-style: none;
+
+  &:hover,
+  &:active,
+  &:focus {
+    background-color: #dddddd;
   }
 }

@@ -1,6 +1,18 @@
 import Processor from "./processor";
 
 class CustomWorklet extends AudioWorkletProcessor {
+  constructor() {
+    super();
+
+    this.port.addEventListener("message", this.message.bind(this));
+    this.port.start();
+  }
+
+  message(content) {
+    if (content?.data === "panic")
+      this.panic()
+  }
+
   process([input,], [output,], _parameters) {
     const n = input.length; // number of channels
 
@@ -14,6 +26,11 @@ class CustomWorklet extends AudioWorkletProcessor {
 
     return true;
   }
+
+  panic() {
+    if (this.processors)
+      this.processors.forEach(p => p.panic());
+  }
 }
 
-registerProcessor("custom-processor", CustomWorklet);
+registerProcessor("effect-processor", CustomWorklet);

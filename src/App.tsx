@@ -23,6 +23,8 @@ export default function App() {
       } catch (error) {
         if (typeof error === "string") {
           setFailure(error);
+        } else if (error?.name === "NotAllowedError") {
+          setFailure("برای استفاده از این برنامه، دسترسی به میکروفون لازم است.");
         } else {
           setFailure(error.message)
           console.log(error);
@@ -55,12 +57,19 @@ export default function App() {
             صدای شما بم شده و کندتر پخش می‌شود.
           </p>
 
-          <div style="text-align: left">
+          <div class="buttons">
             <button
               class={ active ? "stop" : "start" }
               onClick={toggle}
               disabled={!!failure}
-            >{ active ? "توقف" : "شروع" }</button>
+            >{ active ? "توقف" : (audio.is_open ? "ادامه" : "شروع") }</button>
+
+            <button
+              style={ !active && "display: none;" }
+              class="panic"
+              onClick={() => audio.panic()}
+              disabled={!!failure}
+            >ساکت کردن</button>
           </div>
         </div>
       </div>
