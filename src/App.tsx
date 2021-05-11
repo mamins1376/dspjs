@@ -13,7 +13,7 @@ import { h, Ref } from "preact";
 
 const enum AppState { Ready, Opened, Started }
 
-export default function App() {
+const App = () => {
   const [failure, setFailure] = useState("");
   const [state, setState] = useState(AppState.Ready);
   const audio = useMemo(() => new Audio(), []);
@@ -85,7 +85,7 @@ export default function App() {
   );
 };
 
-function Indicator({ active, failure }: { active: Boolean, failure: string }) {
+const Indicator = ({ active, failure }: { active: Boolean, failure: string }) => {
   const [label, color] = [
     ["خطا", "red"], ["فعال", "green"], ["آماده", "blue"]
   ][failure ? 0 : active ? 1 : 2];
@@ -98,7 +98,7 @@ interface ErrorViewProps {
   setFailure: StateUpdater<string>;
 }
 
-function ErrorView({ failure, setFailure }: ErrorViewProps) {
+const ErrorView = ({ failure, setFailure }: ErrorViewProps) => {
   const roller: Ref<HTMLDivElement> = useRef();
   const [height, setHeight] = useState(0);
   const display = useRef(failure);
@@ -122,3 +122,5 @@ function ErrorView({ failure, setFailure }: ErrorViewProps) {
     </div>
   );
 };
+
+export default App;
