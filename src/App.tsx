@@ -86,20 +86,11 @@ export default function App() {
 };
 
 function Indicator({ active, failure }: { active: Boolean, failure: string }) {
-  let label, color;
-  if (failure) {
-    label = "خطا";
-    color = "red";
-  } else if (active) {
-    label = "فعال";
-    color = "green";
-  } else {
-    label = "آماده";
-    color = "blue";
-  }
+  const [label, color] = [
+    ["خطا", "red"], ["فعال", "green"], ["آماده", "blue"]
+  ][failure ? 0 : active ? 1 : 2];
 
-  color = `background-color: var(--color-${color});`
-  return <span style={color}>{label}</span>;
+  return <span style={`background-color: var(--color-${color});`}>{label}</span>;
 };
 
 interface ErrorViewProps {
@@ -110,17 +101,16 @@ interface ErrorViewProps {
 function ErrorView({ failure, setFailure }: ErrorViewProps) {
   const roller: Ref<HTMLDivElement> = useRef();
   const [height, setHeight] = useState(0);
-  const [display, setDisplay] = useState(failure);
+  const display = useRef(failure);
 
-  if (failure)
-    setDisplay(failure);
+  display.current = failure || display.current;
 
   useLayoutEffect(() => {
     if (roller.current)
       setHeight(failure ? roller.current.offsetHeight : 0);
-  }, [roller, failure, setHeight]);
+  }, [display.current]);
 
-  const inner = { __html: display || failure };
+  const inner = { __html: display.current };
   return (
     <div class="error" style={`max-height: ${height}px`}>
       <div ref={roller} class="roller">
