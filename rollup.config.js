@@ -5,18 +5,18 @@ import html, { makeHtmlAttributes } from "@rollup/plugin-html";
 import copy from "rollup-plugin-copy";
 import commonjs from "@rollup/plugin-commonjs";
 
-const P = !!process.env.DIST_DIR;
+const production = !process.env.ROLLUP_WATCH;
 
 var terser, sourcemaps;
-terser = sourcemaps = _ => {};
+terser = sourcemaps = _ => null;
 
-if (P) {
+if (production) {
   terser = require("rollup-plugin-terser").terser;
 } else {
   sourcemaps = require("rollup-plugin-sourcemaps");
 }
 
-const dir = P ? process.env.DIST_DIR : "debug";
+const dir = process.env.DIST_DIR || "dist";
 
 let styles = [];
 
@@ -61,14 +61,14 @@ async function template({ attributes, files, meta, publicPath, title }) {
   </body>
 </html>`;
 
-  return P ? html.replace(/\n */g, "") : html;
+  return production ? html.replace(/\n */g, "") : html;
 }
 
-const config = is_index => ({
-  input: `src/${ is_index ? "index.tsx" : "worklet.js" }`,
+const config = is_main => ({
+  input: `src/${ is_main ? "main.ts" : "worklet.js" }`,
   output: {
     dir,
-    sourcemap: !P,
+    sourcemap: !production,
     format: "iife",
   },
   plugins: [
@@ -84,13 +84,16 @@ const config = is_index => ({
         pure_getters: true,
         passes: 3,
       },
+      format: {
+        comments: false,
+      },
     }),
-    is_index ? scss({
+    is_main ? scss({
       output: css => styles.push(css),
-      outputStyle: P ? "compressed" : "expanded",
+      outputStyle: production ? "compressed" : "expanded",
     }) : null,
     sourcemaps(),
-    is_index ? html({
+    is_main ? html({
       attributes: { html: { lang: "fa" } },
       meta: [
         { charset: "utf-8" },
@@ -99,7 +102,7 @@ const config = is_index => ({
       title: "DSP Project",
       template,
     }) : null,
-    is_index ? copy({
+    is_main ? copy({
       targets: [{
         src: "node_modules/nahid-font/dist/Nahid.woff",
         dest: `${dir}/`

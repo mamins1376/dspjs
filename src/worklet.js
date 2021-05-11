@@ -16,4 +16,4 @@ class CustomWorklet extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("custom-worklet", CustomWorklet);
+registerProcessor("custom-processor", CustomWorklet);

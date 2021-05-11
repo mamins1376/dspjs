@@ -3,7 +3,7 @@ export default class Processor {
   pointer: number = 0;
 
   constructor(rate: number) {
-    const delay = 1;
+    const delay = 4;
     this.delay = new Float32Array(Math.ceil(delay * rate));
   }
 
