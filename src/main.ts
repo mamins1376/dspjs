@@ -1,8 +1,8 @@
 import "./style.scss";
 
-import App from "./App";
+import "./shim";
 
-import "webrtc-adapter";
+import App from "./App";
 
 import { h, render } from "preact";
 
