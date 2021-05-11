@@ -3,6 +3,12 @@
   src: url(./Nahid.woff) format("woff");
 }
 
+:root {
+  --color-red: #cf3349;
+  --color-green: #32c252;
+  --color-blue: #0083e5;
+}
+
 html, body {
   direction: rtl;
   font-family: Nahid, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -23,22 +29,33 @@ button {
   color: #eeeeee;
   border-width: 1px;
   border-style: solid;
+
+  &[disabled] {
+    background-color: #999;
+    border-color: #666;
+    cursor: not-allowed;
+  }
 }
 
 button.start {
   background-color: #00adb5;
-  border-color: #008e95
+  border-color: var(--color-blue);
 
   &:hover,
   &:active,
   &:focus {
     background-color: #00bdc5;
   }
+}
 
-  &[disabled] {
-    background-color: #999;
-    border-color: #666;
-    cursor: not-allowed;
+button.stop {
+  background-color: #cf3349;
+  border-color: var(--color-red);
+
+  &:hover,
+  &:active,
+  &:focus {
+    background-color: #ea2f4a;
   }
 }
 

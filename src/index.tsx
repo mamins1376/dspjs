@@ -28,7 +28,20 @@ render(<App />, document.body);
 function App() {
   const [active, setActive] = useState(false);
   const [failure, setFailure] = useState("");
-  const startDSP = useDSP(active, setActive, setFailure);
+  const context = useAudioContext(active, setFailure);
+  const stretcher = useStretcher(context, setFailure);
+  const mic = useMic(active, setFailure);
+  const [connected, setConnected] = useState(false);
+
+  if (active && context && stretcher && mic && !connected) {
+    context.createMediaStreamSource(mic).connect(stretcher);
+    stretcher.connect(context.destination);
+    setConnected(true);
+  } else if (!active && connected) {
+    stretcher.disconnect(context.destination);
+    context.close()
+      .then(() => setConnected(false));
+  }
 
   return (
     <div class="frame">
@@ -48,8 +61,11 @@ function App() {
           </p>
 
           <div style="text-align: left">
-            <button class="start" onClick={startDSP}
-              disabled={!!failure}>شروع</button>
+            <button
+              class={ active ? "stop" : "start" }
+              onClick={() => setActive(!active)}
+              disabled={!!failure}
+            >{ active ? "توقف" : "شروع" }</button>
           </div>
         </div>
       </div>
@@ -61,16 +77,17 @@ function Indicator({ active, failure }: { active: Boolean, failure: string }) {
   let label, color;
   if (failure) {
     label = "خطا";
-    color = "#cf3349";
+    color = "red";
   } else if (active) {
     label = "فعال";
-    color = "#32c252";
+    color = "green";
   } else {
     label = "آماده";
-    color = "#0083e5";
+    color = "blue";
   }
 
-  return <span style={`background-color: ${color}`}>{label}</span>;
+  color = `background-color: var(--color-${color});`
+  return <span style={color}>{label}</span>;
 };
 
 interface ErrorViewProps {
@@ -104,44 +121,24 @@ function ErrorView({ failure, setFailure }: ErrorViewProps) {
   );
 };
 
-function useDSP(
-  active: Boolean,
-  setActive: StateUpdater<Boolean>,
-  setFailure: StateUpdater<string>
-) {
-  const [context, makeContext] = useAudioContext(setFailure);
-  const stretcher = useStretcher(context, setFailure);
-  const [mic, openMic] = useMic(setFailure);
-
-  if (!active && context && stretcher && mic) {
-    context.createMediaStreamSource(mic).connect(stretcher);
-    stretcher.connect(context.destination);
-    setActive(true);
-  }
-
-  const startDSP = useCallback(() => {
-    makeContext();
-    openMic();
-  }, [makeContext, openMic]);
-
-  return startDSP;
-};
-
-function useAudioContext(setFailure: StateUpdater<string>) {
+function useAudioContext(
+  active: boolean,
+  setFailure: StateUpdater<string>,
+): AudioContext | null {
   const [me, setMe] = useState(null);
 
-  const makeContext = useCallback(() => {
-    if (!me) {
-      if (window.AudioContext) {
-        setMe(new window.AudioContext());
-      } else {
-        setFailure(unsupported);
-        console.error("window.AudioContext is missing");
-      }
+  if (!me && active) {
+    if (window.AudioContext) {
+      setMe(new window.AudioContext());
+    } else {
+      setFailure(unsupported);
+      console.error("window.AudioContext is missing");
     }
-  }, [setFailure])
+  } else if (me && !active) {
+    setMe(null);
+  }
 
-  return [me, makeContext];
+  return me;
 };
 
 function useStretcher(
@@ -175,37 +172,40 @@ function useStretcher(
       setFailure(unsupported);
       console.error("AudioWorkletNode and ScriptProcessorNode are missing");
     }
-  } else if (!context && me) {
+  } else if (me && !context) {
     setMe(null);
   }
 
   return me;
 }
 
-function useMic(setFailure: StateUpdater<string>) {
-  const [stream, setStream] = useState(null);
+function useMic(
+  active: boolean,
+  setFailure: StateUpdater<string>,
+): MediaStream | null {
+  const [me, setMe] = useState(null);
 
-  const openMic = useCallback(() => {
-    if (stream === null) {
-      if (navigator.mediaDevices?.getUserMedia) {
-        navigator.mediaDevices.getUserMedia(track_criteria)
-          .then(setStream)
-          .catch((e: any) => {
-            setFailure("برای استفاده از این برنامه، به دسترسی صدا نیاز است.")
-            console.error("getUserMedia failed:", e);
-          });
+  if (!me && active) {
+    if (navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices.getUserMedia(track_criteria)
+        .then(setMe)
+        .catch((e: any) => {
+          setFailure("برای استفاده از این برنامه، به دسترسی صدا نیاز است.")
+          console.error("getUserMedia failed:", e);
+        });
+    } else {
+      if (isSecureContext === false) {
+        setFailure("مطمئن شوید این صفحه با پروتکل امن "
+          + "(http<strong>s</strong>) بارگزاری شده است.");
+        console.error("insecure context");
       } else {
-        if (isSecureContext === false) {
-          setFailure("مطمئن شوید این صفحه با پروتکل امن "
-            + "(http<strong>s</strong>) بارگزاری شده است.");
-          console.error("insecure context");
-        } else {
-          setFailure(unsupported);
-          console.error("navigator.mediaDevices is missing");
-        }
+        setFailure(unsupported);
+        console.error("navigator.mediaDevices is missing");
       }
     }
-  }, [stream, setFailure]);
+  } else if (me && !active) {
+    setMe(null);
+  }
 
-  return [stream, openMic];
+  return me;
 };
