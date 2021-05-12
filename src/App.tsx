@@ -19,8 +19,6 @@ const App = () => {
   const [state, setState] = useState(AppState.Ready);
   const audio = useSingleton(() => new Audio());
 
-  console.log("App called");
-
   const toggle = useCallback(async () => {
     if (audio.is_started) {
       audio.stop()
@@ -41,7 +39,7 @@ const App = () => {
         }
       }
 
-      if (audio.is_started) {
+      if (audio.is_open) {
         audio.start();
         setState(AppState.Started);
       }
@@ -80,8 +78,8 @@ const App = () => {
             برای شروع،‌به یک میکروفون نیاز دارید.
           </p>
 
-          <p><strong>توجه!</strong>
-            مطمئن شوید مسیر مستقیمی برای صدا بین بلندگو و میکروفون شما برقرار نیست.
+          <p><strong>توجه!</strong> مطمئن
+            شوید مسیر مستقیمی برای صدا بین بلندگو و میکروفون شما برقرار نیست.
             در غیر این صورت ممکن است با صدای سوت بلندی مواجه شوید.
           </p>
 
