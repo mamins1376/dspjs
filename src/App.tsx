@@ -19,6 +19,8 @@ const App = () => {
   const [state, setState] = useState(AppState.Ready);
   const audio = useSingleton(() => new Audio());
 
+  console.log("App called");
+
   const toggle = useCallback(async () => {
     if (audio.is_started) {
       audio.stop()
@@ -39,8 +41,10 @@ const App = () => {
         }
       }
 
-      audio.start();
-      setState(AppState.Started);
+      if (audio.is_started) {
+        audio.start();
+        setState(AppState.Started);
+      }
     }
   }, []);
 
@@ -124,7 +128,7 @@ const ErrorView = ({ failure, setFailure }: ErrorViewProps) => {
   useLayoutEffect(() => {
     if (roller.current)
       setHeight(failure ? roller.current.offsetHeight : 0);
-  }, [display.current]);
+  }, [display.current, failure]);
 
   const inner = { __html: display.current };
   return (
