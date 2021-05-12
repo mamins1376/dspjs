@@ -7,13 +7,15 @@ import commonjs from "@rollup/plugin-commonjs";
 
 const production = !process.env.ROLLUP_WATCH;
 
-var terser, sourcemaps;
-terser = sourcemaps = _ => null;
+var terser, sourcemaps, serve, livereload;
+terser = sourcemaps = serve = livereload = _ => null;
 
 if (production) {
   terser = require("rollup-plugin-terser").terser;
 } else {
   sourcemaps = require("rollup-plugin-sourcemaps");
+  serve = require("rollup-plugin-serve");
+  livereload = require("rollup-plugin-livereload");
 }
 
 const dir = process.env.DIST_DIR || "dist";
@@ -75,6 +77,8 @@ const config = is_main => ({
     typescript(),
     nodeResolve(),
     commonjs(),
+    is_main ? serve({ contentBase: dir, port: 3000, open: true }) : null,
+    is_main ? livereload(dir) : null,
     terser({
       toplevel: true,
       ecma: 2016,
@@ -109,7 +113,8 @@ const config = is_main => ({
       }],
       copyOnce: true,
     }): null,
-  ]
+  ],
+  watch: { clearScreen: false },
 });
 
 export default [config(true), config(false)];

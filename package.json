@@ -4,8 +4,7 @@
   "description": "real-time voice stretch using web audio api",
   "main": "src/index.ts",
   "scripts": {
-    "prestart": "mkdir -p dist && touch dist/index.html",
-    "start": "rollup -c -w & (cd dist && browser-sync -w)"
+    "start": "rollup -c -w"
   },
   "repository": {
     "type": "git",
@@ -29,7 +28,6 @@
     "@rollup/plugin-html": "^0.2.3",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "@rollup/plugin-typescript": "^8.2.1",
-    "browser-sync": "^2.26.14",
     "nahid-font": "^0.3.0",
     "preact": "^10.5.13",
     "rollup-plugin-copy": "^3.4.0",
@@ -38,5 +36,9 @@
     "rollup-plugin-terser": "^7.0.2",
     "terser": "^5.7.0",
     "webrtc-adapter": "^8.0.0"
+  },
+  "devDependencies": {
+    "rollup-plugin-livereload": "^2.0.0",
+    "rollup-plugin-serve": "^1.1.0"
   }
 }
