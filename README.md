@@ -1,35 +1,52 @@
-# &#x202b; پردازنده سیگنال
+<div dir="rtl" align="right">
+<h1 id="DSPJS">پردازنده سیگنال</h1>
 
-&#x202b; می‌تونید صدای تغییر داده شده‌ی خودتون رو به صورت زنده بشنوید، [امتحان کنید](https://mamins1376.github.io/dspjs/)!
+<p>
+می‌تونید صدای تغییر داده شده‌ی خودتون رو به صورت زنده
+بشنوید، <a href="https://mamins1376.github.io/dspjs/" target="__blank">امتحان کنید</a>!
+</p>
 
-&#x202b; ایده اصلی این برنامه به عنوان پروژه درس پردازش سیگنال بوده.
+<p>ایده اصلی این برنامه به عنوان پروژه درس پردازش سیگنال بوده.</p>
 
-## &#x202b; اجرا روی سیستم خودتون
+<h2 id="Running">اجرا روی سیستم خودتون</h2>
 
-&#x202b; برای شروع، اول مخزن رو دریافت کنید:
+<p>برای شروع، اول مخزن رو دریافت کنید:</p>
+</div>
 
 ```
 $ git clone https://github.com/mamins1376/dspjs
 $ cd dspjs
 ```
 
-&#x202b; بعدش (با فرض این که [nodejs](https://www.nodejs.org) رو نصب دارید،) نیازمندی‌های این برنامه رو هم نصب کنید:
+<p dir="rtl" align="right">
+بعدش (با فرض این که <a href="https://www.nodejs.org" target="__blank">nodejs</a> رو نصب
+دارید،) نیازمندی‌های این برنامه رو هم نصب کنید:
+</p>
 
 ```
 $ npm install
 ```
 
-&#x202b; و در نهایت:
+<p dir="rtl" align="right">
+و در نهایت:
+</p>
 
 ```
 $ npm start
 ```
 
-&#x202b; اگر بعد از مدتی تب جدید توی مرورگرتون باز نشد،‌ خودتون برید به آدرس [localhost:3000][http://localhost:3000/].
+<p dir="rtl" align="right">
+اگر بعد از مدتی تب جدید توی مرورگرتون باز نشد،‌ خودتون برید به
+آدرس <a href="http://localhost:3000/" target="__blank">localhost:3000</a>.
+</p>
 
-## &#x202b; دستکاری کد
+<div dir="rtl" align="right">
+<h2 id="Modification">دستکاری کد</h2>
 
-&#x202b; قسمت اصلی پردازش سیگنال توی فایل [`process.ts`](https://github.com/mamins1376/dspjs/tree/default/src/process.ts) هست.
-تابع `Processor.process()` احتمالاً چیزیه که دنبالشید.
+<p>
+قسمت اصلی پردازش سیگنال توی
+فایل <a href="https://github.com/mamins1376/dspjs/tree/default/src/process.ts" target="__blank"><code dir="ltr">process.ts</code></a> هست.
+تابع <code dir="ltr">Processor.process()</code> احتمالاً چیزیه که دنبالشید.
 
-&#x202b; خوش بگذره!
+<p>خوش بگذره!</p>
+</div>
