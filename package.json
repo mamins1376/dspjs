@@ -5,8 +5,7 @@
   "main": "src/index.ts",
   "scripts": {
     "prestart": "mkdir -p dist && touch dist/index.html",
-    "start": "rollup -c -w & (cd dist && browser-sync -w)",
-    "upload": "sh upload"
+    "start": "rollup -c -w & (cd dist && browser-sync -w)"
   },
   "repository": {
     "type": "git",

@@ -6,11 +6,13 @@ set -e
 tmp=$(mktemp -d)
 git="git --git-dir=$tmp/.git --work-tree=$tmp"
 
+git show-ref -q --verify refs/heads/gh-pages && git branch -D gh-pages
 git worktree add --detach --no-checkout $tmp
 $git symbolic-ref HEAD refs/heads/gh-pages
-DIST_DIR=$tmp rollup -c
+
+npm exec -- rollup -c --environment DIST_DIR:$tmp
+
 $git add -A
 $git commit --allow-empty-message --no-edit
 $git push -f origin gh-pages
 git worktree remove -f $tmp
-git branch -D gh-pages
