@@ -66,38 +66,42 @@ async function template({ attributes, files, meta, publicPath, title }) {
   return production ? html.replace(/\n */g, "") : html;
 }
 
-const config = is_main => ({
-  input: `src/${ is_main ? "main.ts" : "worklet.js" }`,
-  output: {
-    dir,
-    sourcemap: !production,
-    format: "iife",
+const output = {
+  dir,
+  sourcemap: !production,
+  format: "iife",
+};
+
+const terser_options = {
+  toplevel: true,
+  ecma: 2016,
+  compress: {
+    arguments: true,
+    unsafe: true,
+    pure_getters: true,
+    passes: 3,
   },
+  format: {
+    comments: false,
+  },
+};
+
+export default [{
+  input: "src/main.ts",
+  output,
   plugins: [
     typescript(),
     nodeResolve(),
     commonjs(),
-    is_main ? serve({ contentBase: dir, port: 3000, open: true }) : null,
-    is_main ? livereload(dir) : null,
-    terser({
-      toplevel: true,
-      ecma: 2016,
-      compress: {
-        arguments: true,
-        unsafe: true,
-        pure_getters: true,
-        passes: 3,
-      },
-      format: {
-        comments: false,
-      },
-    }),
-    is_main ? scss({
+    serve({ contentBase: dir, port: 3000, open: true }),
+    livereload(dir),
+    terser(terser_options),
+    scss({
       output: css => styles.push(css),
       outputStyle: production ? "compressed" : "expanded",
-    }) : null,
+    }),
     sourcemaps(),
-    is_main ? html({
+    html({
       attributes: { html: { lang: "fa" } },
       meta: [
         { charset: "utf-8" },
@@ -105,16 +109,25 @@ const config = is_main => ({
       ],
       title: "DSP Project",
       template,
-    }) : null,
-    is_main ? copy({
+    }),
+    copy({
       targets: [{
         src: "node_modules/nahid-font/dist/Nahid.woff",
         dest: `${dir}/`
       }],
       copyOnce: true,
-    }): null,
+    }),
   ],
   watch: { clearScreen: false },
-});
-
-export default [config(true), config(false)];
+}, {
+  input: "src/worklet.js",
+  output,
+  plugins: [
+    typescript(),
+    nodeResolve(),
+    commonjs(),
+    terser(terser_options),
+    sourcemaps(),
+  ],
+  watch: { clearScreen: false },
+}];
