@@ -1,10 +1,11 @@
 import Audio from "./audio";
+import { process_link } from "./processor";
 
 import {
   useState,
   useRef,
-  useMemo,
   useCallback,
+  useEffect,
   useLayoutEffect,
   StateUpdater,
 } from "preact/hooks";
@@ -16,7 +17,7 @@ const enum AppState { Ready, Opened, Started }
 const App = () => {
   const [failure, setFailure] = useState("");
   const [state, setState] = useState(AppState.Ready);
-  const audio = useMemo(() => new Audio(), []);
+  const audio = useSingleton(() => new Audio());
 
   const toggle = useCallback(async () => {
     if (audio.is_started) {
@@ -53,7 +54,7 @@ const App = () => {
   }, []);
 
   const [b1c, b1l, b2c, b2l] = {
-    [AppState.Ready]: ["start", "شروع", null, null],
+    [AppState.Ready]: ["start", "شروع", undefined, undefined],
     [AppState.Opened]: ["panic", "ادامه", "stop", "بستن"],
     [AppState.Started]: ["stop", "توقف", "panic", "ساکت کردن"],
   }[state];
@@ -71,14 +72,29 @@ const App = () => {
           <ErrorView failure={failure} setFailure={setFailure} />
 
           <p>
-            با این برنامه می‌توانید صدای خود را به صورت زنده آهسته کنید. با این کار،
-            صدای شما بم شده و کندتر پخش می‌شود.
+            در حال حاضر، این برنامه به صدای شما افکت Feedback Delay را اضافه می‌کند.
+            برای شروع،‌به یک میکروفون نیاز دارید.
+          </p>
+
+          <p><strong>توجه!</strong>
+            مطمئن شوید مسیر مستقیمی برای صدا بین بلندگو و میکروفون شما برقرار نیست.
+            در غیر این صورت ممکن است با صدای سوت بلندی مواجه شوید.
           </p>
 
           <div class="buttons">
             <button class={b1c} onClick={toggle} disabled={!!failure} >{b1l}</button>
             {b2l && !failure && <button class={b2c} onClick={panic} >{b2l}</button>}
           </div>
+
+          <p>
+            حلقه اصلی پردازش در این قسمت از کد است:
+            <Code />
+          </p>
+
+          <p>
+            می‌توانید کد کامل پردازش سیگنال
+            را <a target="__blank" href={process_link} >اینجا</a> ببینید.
+          </p>
         </div>
       </div>
     </div>
@@ -112,7 +128,7 @@ const ErrorView = ({ failure, setFailure }: ErrorViewProps) => {
 
   const inner = { __html: display.current };
   return (
-    <div class="error" style={`max-height: ${height}px`}>
+    <div class="error" style={`max-height: ${height}px;`}>
       <div ref={roller} class="roller">
         <div>
           <div><b>خطا!</b> <span dangerouslySetInnerHTML={inner} /></div>
@@ -121,6 +137,43 @@ const ErrorView = ({ failure, setFailure }: ErrorViewProps) => {
       </div>
     </div>
   );
+};
+
+const Code = () => {
+  const div: Ref<HTMLDivElement> = useRef();
+  const [height, setHeight] = useState(0);
+
+  const iframe = useSingleton(() => {
+    const src = new URL("https://emgithub.com/embed.js");
+    const params = src.searchParams;
+    params.append("target", encodeURI(process_link));
+    params.append("style", "github");
+    ["Border", "LineNumbers"].forEach(s => params.append(`show${s}`, "on"));
+
+    const iframe = document.createElement("iframe");
+    iframe.srcdoc = `<!DOCTYPE html><script src="${src.href}"></script>`;
+    iframe.addEventListener("load", ({ target }) => {
+      const root = (target as HTMLIFrameElement).contentDocument!.documentElement;
+      (new MutationObserver(() => setHeight(root.scrollHeight)))
+        .observe(root, { childList: true, subtree: true });
+    });
+
+    return iframe;
+  });
+
+  useEffect(() => {
+    div.current?.appendChild(iframe);
+    return () => div.current?.removeChild(iframe);
+  }, [div.current]);
+
+  return <div ref={div} class="code-container" style={`height: ${height}px;`} />;
+};
+
+type NonVoid<T> = Exclude<NonNullable<T>, void>;
+
+function useSingleton<T>(init: () => NonVoid<T>): NonVoid<T> {
+  const ref: Ref<NonVoid<T>> = useRef(null);
+  return ref.current === null ? (ref.current = init()) : ref.current;
 };
 
 export default App;

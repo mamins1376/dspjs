@@ -1,27 +1,42 @@
+const pwd = "https://github.com/mamins1376/dspjs/blob/default/src"
+export const process_link = pwd + "/processor.ts#L12-L21";
+
 export default class Processor {
-  delay: Float32Array;
-  pointer: number = 0;
+  buffer: RingBuffer;
 
   constructor(rate: number) {
-    const delay = 2;
-    this.delay = new Float32Array(Math.ceil(delay * rate));
+    const delay = 2; // two seconds delay
+    this.buffer = new RingBuffer(Math.ceil(delay * rate));
   }
 
   process(x: Float32Array, y: Float32Array) {
-    const d = this.delay;
-    let p = this.pointer;
-    for (let i = 0; i < x.length; i++) {
-      y[i] = x[i] + d[p];
-      d[p] = y[i] * 0.9;
+    const d = this.buffer;
 
-      p += 1;
-      if (p == d.length)
-        p = 0;
+    for (let i = 0; i < x.length; i++) {
+      y[i] = x[i] + d.s;
+      d.s = y[i] * 0.6;
+
+      d.advance();
     }
-    this.pointer = p;
   }
 
   panic() {
-    this.delay.fill(0);
+    this.buffer.fill(0);
+  }
+}
+
+class RingBuffer extends Float32Array {
+  pointer: number = 0;
+
+  get s() {
+    return this[this.pointer];
+  }
+
+  set s(value: number) {
+    this[this.pointer] = value;
+  }
+
+  advance() {
+    ((++this.pointer) < this.length) || (this.pointer -= this.length);
   }
 }

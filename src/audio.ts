@@ -6,6 +6,8 @@ enum AudioError {
   Unsupported = "متأسفانه مروگر شما پشتیبانی نمی‌شود. لطفاً از فایرفاکس ۷۶ یا جدیدتر، و یا کروم ۶۵ یا جدیدتر استفاده کنید.",
 }
 
+type EffectNode = AudioWorkletNode | ScriptProcessorNode;
+
 export default class Audio {
   private _is_open = false;
   private _is_started = false;
@@ -13,14 +15,14 @@ export default class Audio {
   private context?: AudioContext;
   private stream?: MediaStream;
   private source?: MediaStreamAudioSourceNode;
-  private effect?: AudioWorkletNode | ScriptProcessorNode;
+  private effect?: EffectNode;
 
   async open() {
     if (this._is_open)
       return;
 
     if (!(
-      navigator.mediaDevices?.getUserMedia &&
+      navigator.mediaDevices &&
       AudioContext &&
       (AudioWorkletNode || ScriptProcessorNode)
     ))
@@ -28,46 +30,19 @@ export default class Audio {
         AudioError.Insecure :
         AudioError.Unsupported;
 
-    if (!this.context)
-      this.context = new AudioContext();
+    this.context ??= new AudioContext();
 
-    if (!this.stream)
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          autoGainControl: false,
-          echoCancellation: false,
-          noiseSuppression: false,
-        }
-      });
-
-    if (!this.source)
-      this.source = this.context.createMediaStreamSource(this.stream);
-
-    if (!this.effect) {
-      if (this.context.audioWorklet?.addModule && AudioWorkletNode) {
-        await this.context.audioWorklet.addModule("worklet.js");
-        const effect = new AudioWorkletNode(this.context, "effect-processor");
-        effect.addEventListener("panic", () => effect.port.postMessage("panic"));
-
-        this.effect = effect;
-      } else {
-        let processors = [0, 0].map(_ => new Processor(this.context.sampleRate));
-        const effect = this.context.createScriptProcessor();
-
-        effect.addEventListener("audioprocess", (event: any) => {
-          let { inputBuffer, outputBuffer } = event;
-          for (let c = 0; c < outputBuffer.numberOfChannels; c++) {
-            const x = inputBuffer.getChannelData(c);
-            const y = outputBuffer.getChannelData(c);
-            processors[c].process(x, y);
-          }
-        });
-
-        effect.addEventListener("panic", () => processors.forEach(p => p.panic()));
-
-        this.effect = effect;
+    this.stream ??= await navigator.mediaDevices.getUserMedia({
+      audio: {
+        autoGainControl: false,
+        echoCancellation: false,
+        noiseSuppression: false,
       }
-    }
+    });
+
+    this.source ??= this.context.createMediaStreamSource(this.stream);
+
+    this.effect ??= await makeEffectNode(this.context);
 
     this._is_open = true;
   }
@@ -79,8 +54,8 @@ export default class Audio {
     if (!this._is_started) {
       this._is_started = true;
 
-      this.source.connect(this.effect);
-      this.effect.connect(this.context.destination);
+      this.source!.connect(this.effect!);
+      this.effect!.connect(this.context!.destination);
     }
   }
 
@@ -89,11 +64,14 @@ export default class Audio {
   }
 
   stop() {
+    if (!this._is_open)
+      throw AudioError.NotStarted;
+
     if (this._is_started) {
       this._is_started = false;
 
-      this.source.disconnect(this.effect);
-      this.effect.disconnect(this.context.destination);
+      this.source!.disconnect(this.effect!);
+      this.effect!.disconnect(this.context!.destination);
     }
   }
 
@@ -125,5 +103,31 @@ export default class Audio {
 
   get is_started() {
     return this._is_started;
+  }
+}
+
+async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
+  if (context.audioWorklet?.addModule) {
+    await context.audioWorklet.addModule("worklet.js");
+    const effect = new AudioWorkletNode(context, "effect-processor");
+    effect.addEventListener("panic", () => effect.port.postMessage("panic"));
+    return effect;
+
+  } else {
+    let processors = [0, 0].map(_ => new Processor(context.sampleRate));
+    const effect = context.createScriptProcessor();
+
+    effect.addEventListener("audioprocess", (event: any) => {
+      let { inputBuffer, outputBuffer } = event;
+      for (let c = 0; c < outputBuffer.numberOfChannels; c++) {
+        const x = inputBuffer.getChannelData(c);
+        const y = outputBuffer.getChannelData(c);
+        processors[c].process(x, y);
+      }
+    });
+
+    effect.addEventListener("panic", () => processors.forEach(p => p.panic()));
+
+    return effect;
   }
 }

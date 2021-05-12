@@ -149,3 +149,9 @@ button.dismiss {
     background-color: #dddddd;
   }
 }
+
+div.code-container iframe {
+  width: 100%;
+  height: inherit;
+  border: none;
+}

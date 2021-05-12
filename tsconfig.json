@@ -3,6 +3,7 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "forceConsistentCasingInFileNames": true,
+    "strict": true,
     "jsx": "react",
     "jsxFactory": "h",
     "module": "es6",
