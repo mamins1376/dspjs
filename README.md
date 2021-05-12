@@ -13,7 +13,7 @@ $ git clone https://github.com/mamins1376/dspjs
 $ cd dspjs
 ```
 
-بعدش (با فرض این که [npm](http://npmjs.com) رو نصب دارید،) نیازمندی‌های این برنامه رو هم نصب کنید:
+بعدش (با فرض این که [nodejs](https://www.nodejs.org) رو نصب دارید،) نیازمندی‌های این برنامه رو هم نصب کنید:
 
 ```
 $ npm install
@@ -25,10 +25,11 @@ $ npm install
 $ npm start
 ```
 
-اگر بعد از مدتی تب جدید توی مرورگرتون باز نشد،‌ خودتون برید به آدرس [http://localhost:3000].
+اگر بعد از مدتی تب جدید توی مرورگرتون باز نشد،‌ خودتون برید به آدرس [localhost:3000][http://localhost:3000/].
 
 ## دستکاری کد
 
-قسمت اصلی پردازش سیگنال توی فایل [`process.ts`](https://github.com/mamins1376/dspjs/blob/default/src/process.ts) هست. تابع process احتمالاً چیزیه که دنبالشید.
+قسمت اصلی پردازش سیگنال توی فایل [`process.ts`](https://github.com/mamins1376/dspjs/tree/default/src/process.ts) هست.
+تابع `Processor.process()` احتمالاً چیزیه که دنبالشید.
 
 خوش بگذره!
