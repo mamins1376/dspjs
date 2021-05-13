@@ -1,4 +1,4 @@
-import Processor from "./processor";
+import { Processor } from "./processor.ts";
 
 class CustomWorklet extends AudioWorkletProcessor {
   constructor() {

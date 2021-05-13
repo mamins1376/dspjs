@@ -1,4 +1,4 @@
-import Processor from "./processor";
+import { Processor } from "./processor";
 
 enum AudioError {
   NotStarted = "NOT_STARTED",
