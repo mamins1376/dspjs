@@ -1,5 +1,5 @@
 const pwd = "https://github.com/mamins1376/dspjs/blob/default/src"
-export const process_link = pwd + "/processor.ts#L18-L28";
+export const process_link = pwd + "/processor.ts#L16-L28";
 
 export default class Processor {
   delay: DelayBuffer;
