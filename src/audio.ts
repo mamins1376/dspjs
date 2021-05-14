@@ -165,7 +165,7 @@ export class Processor {
     //        │  ┌───────┐  ┌──────┐  │
     //       d└──┤ DELAY ◄──┤ -3dB ◄──┘
     //           └───────┘  └──────┘
-    for (const [p, i] of take(y.length, enumerate(this.position))) {
+    for (const [i, p] of take(y.length, enumerate(this.position))) {
       y[i] = x[i] + this.buffer[p];
       this.buffer[p] = y[i] * 0.707;
     }
