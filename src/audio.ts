@@ -117,37 +117,49 @@ async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
     const effect = new AudioWorkletNode(context, "effect-processor");
 
     const container: { handler?: EventListener } = {};
-    const initialized: Promise<void> = new Promise(resolve => {
-      container.handler = content =>
-        (((content as MessageEvent).data.type === "initialized") && resolve(undefined));
+    type Resolver = (arg: any) => void;
+    const initialized: Promise<void> = new Promise((resolve: Resolver, reject: Resolver) => {
+      container.handler = ((content: MessageEvent) => {
+        const map: any = { resolve, reject };
+        const { type, error } = content.data;
+        if (map.hasOwnProperty(type))
+          (map[type])(error);
+        else
+          console.error("invalid message:", content.data);
+      }) as EventListener;
       effect.port.addEventListener("message", container.handler);
     })
 
     effect.port.start();
     effect.port.postMessage({ type: "processor", buffer });
-    await initialized;
-    (effect as EventTarget).removeEventListener("message", container.handler!);
 
-    effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
-    return effect;
+    try {
+      await initialized;
 
-  } else {
-    await initialize(url);
+      (effect as EventTarget).removeEventListener("message", container.handler!);
 
-    let processors = [0, 0].map(_ => new Processor(context.sampleRate));
-    const effect = context.createScriptProcessor();
-
-    effect.addEventListener("audioprocess", (event: any) => {
-      let { inputBuffer, outputBuffer } = event;
-      for (let c = 0; c < outputBuffer.numberOfChannels; c++) {
-        const x = inputBuffer.getChannelData(c);
-        const y = outputBuffer.getChannelData(c);
-        processors[c].process(x, y);
-      }
-    });
-
-    effect.addEventListener("panic", () => processors.forEach(p => p.panic()));
-
-    return effect;
+      effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
+      return effect;
+    } catch (e) {
+      console.warn("falling back to ScriptProcessorNode since AudioWorklet initialization failed:", e);
+    }
   }
+
+  await initialize(url);
+
+  let processors = [0, 0].map(_ => new Processor(context.sampleRate));
+  const effect = context.createScriptProcessor();
+
+  effect.addEventListener("audioprocess", (event: any) => {
+    let { inputBuffer, outputBuffer } = event;
+    for (let c = 0; c < outputBuffer.numberOfChannels; c++) {
+      const x = inputBuffer.getChannelData(c);
+      const y = outputBuffer.getChannelData(c);
+      processors[c].process(x, y);
+    }
+  });
+
+  effect.addEventListener("panic", () => processors.forEach(p => p.panic()));
+
+  return effect;
 }

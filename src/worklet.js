@@ -16,7 +16,8 @@ class CustomWorklet extends AudioWorkletProcessor {
       this.panic()
     } else if (type === "processor") {
       initialize(content.data.buffer)
-        .then(() => this.port.postMessage({ type: "initialized" }));
+        .then(() => this.port.postMessage({ type: "resolve" }))
+        .catch(error => this.port.postMessage({ type: "reject", error }));
     }
   }
 
