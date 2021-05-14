@@ -135,47 +135,48 @@ async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
 }
 
 async function makeWorkletNode(context: AudioContext, url: URL): Promise<AudioWorkletNode | void> {
-  if (context.audioWorklet?.addModule) {
-    const response = await fetch(url.href);
-    const buffer = await response.arrayBuffer();
+  if (!context.audioWorklet)
+    return;
 
-    await context.audioWorklet.addModule("worklet.js");
+  const response = await fetch(url.href);
+  const buffer = await response.arrayBuffer();
 
-    let effect: AudioWorkletNode;
-    try {
-      effect = new AudioWorkletNode(context, register_id);
-    } catch (error) {
-      if (error.name === "InvalidStateError")
-        return;
-      throw error;
-    }
+  await context.audioWorklet.addModule("worklet.js");
 
-    const container: { handler?: EventListener } = {};
-    type Resolver = (arg: any) => void;
-    const initialized: Promise<void> = new Promise((resolve: Resolver, reject: Resolver) => {
-      container.handler = ((content: MessageEvent) => {
-        const map: any = { resolve, reject };
-        const { type, error } = content.data;
-        if (map.hasOwnProperty(type))
-          (map[type])(error);
-        else
-          console.error("invalid message:", content.data);
-      }) as EventListener;
-      effect.port.addEventListener("message", container.handler);
-    })
-
-    effect.port.start();
-    effect.port.postMessage({ type: "processor", buffer });
-
-    try {
-      await initialized;
-    } catch (e) {
-      console.warn("AudioWorklet init failed:", e);
-    }
-
-    (effect as EventTarget).removeEventListener("message", container.handler!);
-
-    effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
-    return effect;
+  let effect: AudioWorkletNode;
+  try {
+    effect = new AudioWorkletNode(context, register_id);
+  } catch (error) {
+    if (error.name === "InvalidStateError")
+      return;
+    throw error;
   }
+
+  const container: { handler?: EventListener } = {};
+  type Resolver = (arg: any) => void;
+  const initialized: Promise<void> = new Promise((resolve: Resolver, reject: Resolver) => {
+    container.handler = ((content: MessageEvent) => {
+      const map: any = { resolve, reject };
+      const { type, error } = content.data;
+      if (map.hasOwnProperty(type))
+        (map[type])(error);
+      else
+        console.error("invalid message:", content.data);
+    }) as EventListener;
+    effect.port.addEventListener("message", container.handler);
+  })
+
+  effect.port.start();
+  effect.port.postMessage({ type: "processor", buffer });
+
+  try {
+    await initialized;
+  } catch (e) {
+    console.warn("AudioWorklet init failed:", e);
+  }
+
+  (effect as EventTarget).removeEventListener("message", container.handler!);
+
+  effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
+  return effect;
 }
