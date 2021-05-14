@@ -1,13 +1,25 @@
-#!/bin/sh
+#!/bin/bash
 # vim:set et ts=4 sts=4 sw=4:
 
 set -e
 
+if [ -z ${BASH+x} ]; then
+    printf 'ERROR: shell must be bash\n' >&2
+    exit 1
+fi
+
 tmp=$(mktemp -d)
-git="git --git-dir=$tmp/.git --work-tree=$tmp"
+
+clean_up() {
+    printf "\ncleaning up $tmp\n"
+    git worktree remove -f $tmp
+}
 
 git show-ref -q --verify refs/heads/gh-pages && git branch -D gh-pages
 git worktree add --detach --no-checkout $tmp
+trap clean_up EXIT
+
+git="git --git-dir=$tmp/.git --work-tree=$tmp"
 $git symbolic-ref HEAD refs/heads/gh-pages
 
 npm exec -- rollup -c --environment DIST_DIR:$tmp
@@ -15,4 +27,3 @@ npm exec -- rollup -c --environment DIST_DIR:$tmp
 $git add -A
 $git commit --allow-empty-message --no-edit
 $git push -f origin gh-pages
-git worktree remove -f $tmp
