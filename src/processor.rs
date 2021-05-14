@@ -1,6 +1,15 @@
+#![no_std]
+
+extern crate alloc;
+
+use wee_alloc::WeeAlloc;
 use wasm_bindgen::prelude::*;
 
 use core::ops::{Deref, DerefMut};
+use alloc::{vec, boxed::Box};
+
+#[global_allocator]
+static ALLOC: WeeAlloc = WeeAlloc::INIT;
 
 #[wasm_bindgen]
 pub struct Processor {
