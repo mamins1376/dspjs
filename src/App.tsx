@@ -12,7 +12,7 @@ import {
 import { h, Ref } from "preact";
 
 const pwd = "https://github.com/mamins1376/dspjs/blob/default/src"
-const process_link = pwd + "/processor.rs#L23-L35";
+const process_link = pwd + "/processor.rs#L38-L48";
 
 const enum AppState { Ready, Opened, Started }
 
@@ -77,7 +77,7 @@ const App = () => {
 
           <p>
             در حال حاضر، این برنامه به صدای شما افکت Feedback Delay را اضافه می‌کند.
-            برای شروع،‌به یک میکروفون نیاز دارید.
+            برای شروع، ‌به یک میکروفون نیاز دارید.
           </p>
 
           <p><strong>توجه!</strong> مطمئن
