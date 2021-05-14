@@ -11,8 +11,8 @@ import {
 
 import { h, Ref } from "preact";
 
-const pwd = "https://github.com/mamins1376/dspjs/blob/default/src"
-const process_link = pwd + "/processor.rs#L38-L48";
+const root = "https://github.com/mamins1376/dspjs/blob/default"
+const process_link = root + "/src/audio.ts#L160-L172";
 
 const enum AppState { Ready, Opened, Started }
 
