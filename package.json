@@ -40,6 +40,7 @@
   "devDependencies": {
     "@wasm-tool/rollup-plugin-rust": "^1.0.6",
     "rollup-plugin-livereload": "^2.0.0",
-    "rollup-plugin-serve": "^1.1.0"
+    "rollup-plugin-serve": "^1.1.0",
+    "types-web": "^0.1.11"
   }
 }

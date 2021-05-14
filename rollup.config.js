@@ -140,7 +140,7 @@ export default [{
   ],
   watch: { clearScreen: false },
 }, {
-  input: "src/worklet.js",
+  input: "src/worklet.ts",
   output,
   plugins: [
     typescript(),

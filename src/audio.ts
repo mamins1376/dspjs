@@ -1,5 +1,7 @@
 import initialize, { Processor } from "../target/wasm-pack/processor";
 
+export const register_id: string = "custom-worklet";
+
 enum AudioError {
   NotStarted = "NOT_STARTED",
   Insecure = "مطمئن شوید این صفحه با پروتکل امن http<strong>s</strong>) بارگزاری شده است.",
@@ -109,12 +111,44 @@ export default class Audio {
 async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
   const url = new URL("processor.wasm", window.location.href);
 
+  const worklet = await makeWorkletNode(context, url);
+  if (worklet)
+    return worklet;
+
+  await initialize(url);
+
+  let processors = [0, 0].map(_ => new Processor(context.sampleRate));
+  const effect = context.createScriptProcessor();
+
+  effect.addEventListener("audioprocess", (event: any) => {
+    let { inputBuffer, outputBuffer } = event;
+    for (let c = 0; c < outputBuffer.numberOfChannels; c++) {
+      const x = inputBuffer.getChannelData(c);
+      const y = outputBuffer.getChannelData(c);
+      processors[c].process(x, y);
+    }
+  });
+
+  effect.addEventListener("panic", () => processors.forEach(p => p.panic()));
+
+  return effect;
+}
+
+async function makeWorkletNode(context: AudioContext, url: URL): Promise<AudioWorkletNode | void> {
   if (context.audioWorklet?.addModule) {
     const response = await fetch(url.href);
     const buffer = await response.arrayBuffer();
 
     await context.audioWorklet.addModule("worklet.js");
-    const effect = new AudioWorkletNode(context, "effect-processor");
+
+    let effect: AudioWorkletNode;
+    try {
+      effect = new AudioWorkletNode(context, register_id);
+    } catch (error) {
+      if (error.name === "InvalidStateError")
+        return;
+      throw error;
+    }
 
     const container: { handler?: EventListener } = {};
     type Resolver = (arg: any) => void;
@@ -135,31 +169,13 @@ async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
 
     try {
       await initialized;
-
-      (effect as EventTarget).removeEventListener("message", container.handler!);
-
-      effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
-      return effect;
     } catch (e) {
-      console.warn("falling back to ScriptProcessorNode since AudioWorklet initialization failed:", e);
+      console.warn("AudioWorklet init failed:", e);
     }
+
+    (effect as EventTarget).removeEventListener("message", container.handler!);
+
+    effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
+    return effect;
   }
-
-  await initialize(url);
-
-  let processors = [0, 0].map(_ => new Processor(context.sampleRate));
-  const effect = context.createScriptProcessor();
-
-  effect.addEventListener("audioprocess", (event: any) => {
-    let { inputBuffer, outputBuffer } = event;
-    for (let c = 0; c < outputBuffer.numberOfChannels; c++) {
-      const x = inputBuffer.getChannelData(c);
-      const y = outputBuffer.getChannelData(c);
-      processors[c].process(x, y);
-    }
-  });
-
-  effect.addEventListener("panic", () => processors.forEach(p => p.panic()));
-
-  return effect;
 }

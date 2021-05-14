@@ -1,8 +1,14 @@
+/// <reference path="../node_modules/types-web/baselines/audioworklet.generated.d.ts" />
+
 import "./text-decoder";
 
 import initialize, { Processor } from "../target/wasm-pack/processor";
 
+import { register_id } from "./audio";
+
 class CustomWorklet extends AudioWorkletProcessor {
+  processors?: Processor[];
+
   constructor() {
     super();
 
@@ -10,7 +16,7 @@ class CustomWorklet extends AudioWorkletProcessor {
     this.port.start();
   }
 
-  message(content) {
+  message(content: MessageEvent) {
     const type = content.data?.type;
     if (type === "panic") {
       this.panic()
@@ -21,14 +27,15 @@ class CustomWorklet extends AudioWorkletProcessor {
     }
   }
 
-  process([input,], [output,], _parameters) {
+  process([input,]: Float32Array[][], [output,]: Float32Array[][]) {
     const n = input.length; // number of channels
 
     if (n === 0 || n !== output.length)
       return false;
 
     if (!this.processors || this.processors.length !== n)
-      this.processors = Array(n).fill().map(_ => new Processor(sampleRate));
+      this.processors = Array(n).fill(null)
+        .map(_ => new Processor(sampleRate));
 
     this.processors.forEach((p, k) => p.process(input[k], output[k]));
 
@@ -41,4 +48,4 @@ class CustomWorklet extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("effect-processor", CustomWorklet);
+registerProcessor(register_id, CustomWorklet as any);
