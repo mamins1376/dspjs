@@ -96,6 +96,7 @@ export default [{
   plugins: [
     rust({
       debug: !production,
+      verbose: !production,
       watchPatterns: ["Cargo.toml", "src/**/*.rs"],
     }),
     copy({

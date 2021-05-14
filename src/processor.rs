@@ -27,7 +27,9 @@ impl Processor {
 
     #[wasm_bindgen]
     pub fn process(&mut self, x: &[f32], y: &mut [f32]) -> Result<(), JsValue> {
-        let d = &mut self.delay;
+        let iter = y.iter_mut()
+            .zip(x.iter())
+            .zip(self.delay);
 
         // x is input buffer, y is output buffer:
         //      ┌───┐
@@ -36,11 +38,9 @@ impl Processor {
         //        │  ┌───────┐  ┌──────┐  │
         //       d└──┤ DELAY ◄──┤ -3dB ◄──┘
         //           └───────┘  └──────┘
-        for (o, i) in y.iter_mut().zip(x.iter()) {
-            *o = *i + **d;
-            **d = *o * 0.707;
-
-            d.advance();
+        for ((y, x), d) in iter {
+            *y = *x + *d;
+            *d = *y * 0.707;
         }
 
         Ok(())
@@ -88,5 +88,15 @@ impl Deref for Delay {
 impl DerefMut for Delay {
     fn deref_mut(&mut self) -> &mut f32 {
         unsafe { self.buffer.get_unchecked_mut(self.pointer) }
+    }
+}
+
+impl Iterator for Delay {
+    type Item = &mut f32;
+
+    fn next(&mut self) -> Option<&mut f32> {
+        let num = &*self;
+        self.advance();
+        Some(num)
     }
 }
