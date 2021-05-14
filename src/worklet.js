@@ -1,4 +1,6 @@
-import { Processor } from "./processor.ts";
+import "./text-decoder";
+
+import initialize, { Processor } from "../target/wasm-pack/processor";
 
 class CustomWorklet extends AudioWorkletProcessor {
   constructor() {
@@ -9,8 +11,13 @@ class CustomWorklet extends AudioWorkletProcessor {
   }
 
   message(content) {
-    if (content?.data === "panic")
+    const type = content.data?.type;
+    if (type === "panic") {
       this.panic()
+    } else if (type === "processor") {
+      initialize(content.data.buffer)
+        .then(() => this.port.postMessage({ type: "initialized" }));
+    }
   }
 
   process([input,], [output,], _parameters) {

@@ -1,4 +1,4 @@
-import { Processor } from "./processor";
+import initialize, { Processor } from "../target/wasm-pack/processor";
 
 enum AudioError {
   NotStarted = "NOT_STARTED",
@@ -107,13 +107,33 @@ export default class Audio {
 }
 
 async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
+  const url = new URL("processor.wasm", window.location.href);
+
   if (context.audioWorklet?.addModule) {
+    const response = await fetch(url.href);
+    const buffer = await response.arrayBuffer();
+
     await context.audioWorklet.addModule("worklet.js");
     const effect = new AudioWorkletNode(context, "effect-processor");
-    effect.addEventListener("panic", () => effect.port.postMessage("panic"));
+
+    const container: { handler?: EventListener } = {};
+    const initialized: Promise<void> = new Promise(resolve => {
+      container.handler = content =>
+        (((content as MessageEvent).data.type === "initialized") && resolve(undefined));
+      effect.port.addEventListener("message", container.handler);
+    })
+
+    effect.port.start();
+    effect.port.postMessage({ type: "processor", buffer });
+    await initialized;
+    (effect as EventTarget).removeEventListener("message", container.handler!);
+
+    effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
     return effect;
 
   } else {
+    await initialize(url);
+
     let processors = [0, 0].map(_ => new Processor(context.sampleRate));
     const effect = context.createScriptProcessor();
 

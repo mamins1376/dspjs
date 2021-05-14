@@ -1,5 +1,4 @@
 import Audio from "./audio";
-import { process_link } from "./processor";
 
 import {
   useState,
@@ -11,6 +10,9 @@ import {
 } from "preact/hooks";
 
 import { h, Ref } from "preact";
+
+const pwd = "https://github.com/mamins1376/dspjs/blob/default/src"
+const process_link = pwd + "/processor.rs#L23-L35";
 
 const enum AppState { Ready, Opened, Started }
 

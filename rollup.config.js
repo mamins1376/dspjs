@@ -4,6 +4,7 @@ import scss from "rollup-plugin-scss";
 import html, { makeHtmlAttributes } from "@rollup/plugin-html";
 import copy from "rollup-plugin-copy";
 import commonjs from "@rollup/plugin-commonjs";
+import rust from "@wasm-tool/rollup-plugin-rust";
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -66,6 +67,7 @@ async function template({ attributes, files, meta, publicPath, title }) {
   return production ? html.replace(/\n */g, "") : html;
 }
 
+/** @type {import("rollup").RollupOutput} */
 const output = {
   dir,
   sourcemap: !production,
@@ -87,6 +89,24 @@ const terser_options = {
 };
 
 export default [{
+  input: "Cargo.toml",
+  output: {
+    dir: "target",
+  },
+  plugins: [
+    rust({
+      debug: !production,
+      watchPatterns: ["Cargo.toml", "src/**/*.rs"],
+    }),
+    copy({
+      targets: [{
+        src: "target/wasm-pack/processor/index_bg.wasm",
+        dest: dir,
+        rename: "processor.wasm"
+      }],
+    }),
+  ],
+}, {
   input: "src/main.ts",
   output,
   plugins: [
@@ -94,7 +114,6 @@ export default [{
     nodeResolve(),
     commonjs(),
     serve({ contentBase: dir, port: 3000, open: true }),
-    livereload(dir),
     terser(terser_options),
     scss({
       output: css => styles.push(css),
@@ -117,6 +136,7 @@ export default [{
       }],
       copyOnce: true,
     }),
+    livereload(dir),
   ],
   watch: { clearScreen: false },
 }, {
