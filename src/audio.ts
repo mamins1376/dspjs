@@ -1,5 +1,3 @@
-import { range, cycle, take, enumerate } from "iter-tools";
-
 export const register_id: string = "custom-worklet";
 
 enum AudioError {
@@ -154,7 +152,9 @@ export class Processor {
   constructor(rate: number) {
     const length = 1 * rate; // one second delay
     this.buffer = new Float32Array(length);
-    this.position = cycle(range(length));
+    const position = cycle(length);
+    position.return = () => ({ value: undefined, done: true });
+    this.position = position;
   }
 
   process(x: Float32Array, y: Float32Array) {
@@ -165,7 +165,7 @@ export class Processor {
     //        │  ┌───────┐  ┌──────┐  │
     //       d└──┤ DELAY ◄──┤ -3dB ◄──┘
     //           └───────┘  └──────┘
-    for (const [i, p] of take(y.length, enumerate(this.position))) {
+    for (const [i, p] of limit_enumerate(y.length, this.position)) {
       y[i] = x[i] + this.buffer[p];
       this.buffer[p] = y[i] * 0.707;
     }
@@ -173,5 +173,20 @@ export class Processor {
 
   panic() {
     this.buffer.fill(0);
+  }
+}
+
+function * cycle(period: number): Generator<number> {
+  while (true)
+    for (let i = 0; i < period; i++)
+      yield i;
+}
+
+function * limit_enumerate<T>(n: number, iter: IterableIterator<T>): Generator<[number, T]> {
+  let i = 0;
+  for (const v of iter) {
+    if (i === n)
+      return;
+    yield [i++, v];
   }
 }
