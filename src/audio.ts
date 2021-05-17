@@ -147,13 +147,13 @@ async function makeWorkletNode(context: AudioContext): Promise<AudioWorkletNode 
 
 export class Processor {
   buffer: Float32Array;
-  position: IterableIterator<number>;
+  position: Iterable<number>;
 
   constructor(rate: number) {
     const length = 1 * rate; // one second delay
     this.buffer = new Float32Array(length);
     const position = cycle(length);
-    position.return = () => ({ value: undefined, done: true });
+    position.return = value => ({ value, done: true });
     this.position = position;
   }
 
@@ -176,17 +176,17 @@ export class Processor {
   }
 }
 
-function * cycle(period: number): Generator<number> {
+function * cycle(period: number): Generator<number, void> {
   while (true)
     for (let i = 0; i < period; i++)
       yield i;
 }
 
-function * limit_enumerate<T>(n: number, iter: IterableIterator<T>): Generator<[number, T]> {
+function * limit_enumerate<T>(n: number, iter: Iterable<T>): Generator<[number, T], void> {
   let i = 0;
   for (const v of iter) {
-    if (i === n)
-      return;
-    yield [i++, v];
+    yield [i, v];
+    if (++i === n)
+      break;
   }
 }
