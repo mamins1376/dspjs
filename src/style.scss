@@ -1,18 +1,23 @@
 @font-face {
   font-family: Nahid;
-  src: url(./Nahid.woff) format("woff");
+  src: url('./Nahid.woff') format('woff');
 }
 
-:root {
-  --color-red: #cf3349;
-  --color-green: #32c252;
-  --color-blue: #0083e5;
+@font-face {
+  font-family: 'Fira Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('./fira-mono-latin-400.woff') format('woff');
 }
 
 html, body {
   direction: rtl;
   font-family: Nahid, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
+  --color-red: #cf3349;
+  --color-green: #32c252;
+  --color-blue: #0083e5;
 }
 
 h1 {
@@ -150,8 +155,27 @@ button.dismiss {
   }
 }
 
-div.code-container iframe {
-  width: 100%;
-  height: inherit;
-  border: none;
+div.code-container {
+  transition: max-height 0.8s ease;
+  overflow: hidden;
+
+  iframe {
+    width: 100%;
+    height: inherit;
+    border: none;
+  }
+}
+
+div.emgithub-container {
+  direction: ltr;
+  margin: 0 !important;
+
+  pre, code {
+    font-family: 'Fira Mono', monospace;
+    font-size: 0.8rem;
+  }
+
+  span.hljs-comment {
+    font-style: normal;
+  }
 }

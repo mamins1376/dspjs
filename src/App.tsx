@@ -154,12 +154,18 @@ const Code = () => {
     params.append("style", "github");
     ["Border", "LineNumbers"].forEach(s => params.append(`show${s}`, "on"));
 
+    const styles = Array.prototype.map.call(
+      document.head.getElementsByTagName("style"),
+      node => node.cloneNode(true)
+    ) as Array<HTMLStyleElement>;
+
     const iframe = document.createElement("iframe");
     iframe.srcdoc = `<!DOCTYPE html><script src="${src.href}"></script>`;
     iframe.addEventListener("load", ({ target }) => {
-      const root = (target as HTMLIFrameElement).contentDocument!.documentElement;
-      (new MutationObserver(() => setHeight(root.scrollHeight)))
-        .observe(root, { childList: true, subtree: true });
+      const doc = (target as HTMLIFrameElement).contentDocument!;
+      styles.forEach(style => doc.body.appendChild(style));
+      (new MutationObserver(() => setHeight(10 + doc.documentElement.scrollHeight)))
+        .observe(doc.documentElement, { childList: true, subtree: true });
     });
 
     return iframe;
@@ -170,7 +176,9 @@ const Code = () => {
     return () => div.current?.removeChild(iframe);
   }, [div.current]);
 
-  return <div ref={div} class="code-container" style={`height: ${height}px;`} />;
+  useEffect(() => { iframe.style.height = height + "px"; }, [height]);
+
+  return <div ref={div} class="code-container" style={`max-height: ${height}px;`} />;
 };
 
 type NonVoid<T> = Exclude<NonNullable<T>, void>;
