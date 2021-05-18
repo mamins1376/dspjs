@@ -1,9 +1,17 @@
 import typescript from "@rollup/plugin-typescript";
-import { nodeResolve } from "@rollup/plugin-node-resolve";
+import resolve from "@rollup/plugin-node-resolve";
 import scss from "rollup-plugin-scss";
 import html, { makeHtmlAttributes } from "@rollup/plugin-html";
 import copy from "rollup-plugin-copy";
 import commonjs from "@rollup/plugin-commonjs";
+
+import hljs from "highlight.js/lib/core";
+import hljs_ts from "highlight.js/lib/languages/typescript";
+import HTMLtoJSX from "htmltojsx";
+import jsxTransform from "jsx-transform";
+
+import { readFile } from "fs/promises";
+import { isAbsolute } from "path";
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -20,7 +28,66 @@ if (production) {
 
 const dir = process.env.DIST_DIR || "dist";
 
-let styles = [];
+const styles = [];
+
+function try_ext(extensions) {
+  extensions = (extensions ?? []).filter(v => v);
+
+  return {
+    async resolveId(id, importer) {
+      if (!id.startsWith("."))
+        return null;
+
+      for (const file of extensions.map(ext => `${id}.${ext}`)) {
+        const r = await this.resolve(file, importer, { skipSelf: true });
+        if (r)
+          return r.id;
+      }
+
+      return null;
+    }
+  };
+}
+
+hljs.registerLanguage("typescript", hljs_ts);
+/** @type {import("rollup").PluginImpl} */
+function highlight() {
+  const name = "highlight";
+  const H2J = new HTMLtoJSX({ createClass: false });
+
+  return {
+    name,
+    async resolveId(id, importer) {
+      const [id_name, range, importee] = id.split(":");
+      if (id_name !== name)
+        return null;
+
+      if (isAbsolute(importee))
+        return id;
+
+      const resolution = await this.resolve(importee, importer, { skipSelf: true });
+      if (!resolution)
+        return;
+
+      return [name, range, resolution.id].join(":");
+    },
+    async load(id) {
+      const [id_name, range, file] = id.split(":");
+      if (id_name !== name || !isAbsolute(file))
+        return null;
+
+      const [start, end] = JSON.parse(`[${range}]`);
+      const code = (await readFile(file, { encoding: "utf-8" }))
+        .split("\n")
+        .slice(start > 0 ? (start - 1) : start, end)
+        .join("\n");
+
+      const jsx = H2J.convert(hljs.highlight("typescript", code).value);
+      const m = `import { h } from "preact";\nexport default () => (${jsx});`;
+      return jsxTransform.fromString(m, { factory: "h" });
+    },
+  };
+}
 
 async function template({ attributes, files, meta, publicPath, title }) {
   const [html_attrs, script_attrs, link_attrs] =
@@ -41,9 +108,9 @@ async function template({ attributes, files, meta, publicPath, title }) {
     .join("\n    ");
 
   const style_elements = styles
+    .splice(0)
     .map(style => `<style>\n${style}\n    </style>`)
     .join("\n    ");
-  styles = [];
 
   const metas = meta
     .map(makeHtmlAttributes)
@@ -91,8 +158,10 @@ export default [{
   input: "src/main.ts",
   output,
   plugins: [
+    try_ext(["scss"]),
+    highlight(),
     typescript(),
-    nodeResolve(),
+    resolve(),
     commonjs(),
     serve({ contentBase: dir, port: 3000, open: true }),
     terser(terser_options),
@@ -120,7 +189,7 @@ export default [{
       }],
       copyOnce: true,
     }),
-    livereload(dir),
+    livereload({ dir }),
   ],
   watch: { clearScreen: false },
 }, {
@@ -128,7 +197,7 @@ export default [{
   output,
   plugins: [
     typescript(),
-    nodeResolve(),
+    resolve(),
     commonjs(),
     terser(terser_options),
     sourcemaps(),

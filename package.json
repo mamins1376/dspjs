@@ -39,6 +39,10 @@
   },
   "devDependencies": {
     "@openfonts/fira-mono_latin": "^1.44.2",
+    "@types/htmltojsx": "^0.0.29",
+    "highlight.js": "^10.7.2",
+    "htmltojsx": "^0.3.0",
+    "jsx-transform": "^2.4.1",
     "rollup-plugin-livereload": "^2.0.0",
     "rollup-plugin-serve": "^1.1.0",
     "types-web": "^0.1.11"

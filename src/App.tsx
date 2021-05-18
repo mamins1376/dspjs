@@ -1,3 +1,5 @@
+/// <reference path="./highlight.d.ts" />
+
 import Audio from "./audio";
 
 import {
@@ -11,8 +13,7 @@ import {
 
 import { h, Ref } from "preact";
 
-const root = "https://github.com/mamins1376/dspjs/blob/default"
-const process_link = root + "/src/audio.ts#L160-L172";
+import AudioHighlight from "highlight:160,172:./audio";
 
 const enum AppState { Ready, Opened, Started }
 
@@ -63,6 +64,8 @@ const App = () => {
     [AppState.Started]: ["stop", "توقف", "panic", "ساکت کردن"],
   }[state];
 
+  console.log(AudioHighlight);
+
   return (
     <div class="frame">
       <div class="window">
@@ -92,7 +95,7 @@ const App = () => {
 
           <p>حلقه اصلی پردازش در این قسمت از کد است:</p>
 
-          <Code />
+          <AudioHighlight />
         </div>
       </div>
     </div>
@@ -135,45 +138,6 @@ const ErrorView = ({ failure, setFailure }: ErrorViewProps) => {
       </div>
     </div>
   );
-};
-
-const Code = () => {
-  const div: Ref<HTMLDivElement> = useRef();
-  const [height, setHeight] = useState(0);
-
-  const iframe = useSingleton(() => {
-    const src = new URL("https://emgithub.com/embed.js");
-    const params = src.searchParams;
-    params.append("target", encodeURI(process_link));
-    params.append("style", "magula");
-    ["LineNumbers", "FileMeta", "Copy"]
-      .forEach(s => params.append("show" + s, "on"));
-
-    const styles = Array.prototype.map.call(
-      document.head.getElementsByTagName("style"),
-      node => node.cloneNode(true)
-    ) as Array<HTMLStyleElement>;
-
-    const iframe = document.createElement("iframe");
-    iframe.srcdoc = `<!DOCTYPE html><script src="${src.href}"></script>`;
-    iframe.addEventListener("load", ({ target }) => {
-      const doc = (target as HTMLIFrameElement).contentDocument!;
-      styles.forEach(style => doc.body.appendChild(style));
-      (new MutationObserver(() => setHeight(10 + doc.documentElement.scrollHeight)))
-        .observe(doc.documentElement, { childList: true, subtree: true });
-    });
-
-    return iframe;
-  });
-
-  useEffect(() => {
-    div.current?.appendChild(iframe);
-    return () => div.current?.removeChild(iframe);
-  }, [div.current]);
-
-  useEffect(() => { iframe.style.height = height + "px"; }, [height]);
-
-  return <div ref={div} class="code-container" style={`max-height: ${height}px;`} />;
 };
 
 type NonVoid<T> = Exclude<NonNullable<T>, void>;
