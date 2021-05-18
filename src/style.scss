@@ -175,7 +175,11 @@ div.emgithub-container {
     font-size: 0.8rem;
   }
 
-  span.hljs-comment {
-    font-style: normal;
+  code {
+    padding: unset !important;
+  }
+
+  table {
+    border-right: 1rem solid transparent;
   }
 }

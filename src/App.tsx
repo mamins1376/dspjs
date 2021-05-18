@@ -90,15 +90,9 @@ const App = () => {
             {b2l && !failure && <button class={b2c} onClick={panic} >{b2l}</button>}
           </div>
 
-          <p>
-            حلقه اصلی پردازش در این قسمت از کد است:
-            <Code />
-          </p>
+          <p>حلقه اصلی پردازش در این قسمت از کد است:</p>
 
-          <p>
-            می‌توانید کد کامل پردازش سیگنال
-            را <a target="__blank" href={process_link} >اینجا</a> ببینید.
-          </p>
+          <Code />
         </div>
       </div>
     </div>
@@ -151,8 +145,9 @@ const Code = () => {
     const src = new URL("https://emgithub.com/embed.js");
     const params = src.searchParams;
     params.append("target", encodeURI(process_link));
-    params.append("style", "github");
-    ["Border", "LineNumbers"].forEach(s => params.append(`show${s}`, "on"));
+    params.append("style", "magula");
+    ["LineNumbers", "FileMeta", "Copy"]
+      .forEach(s => params.append("show" + s, "on"));
 
     const styles = Array.prototype.map.call(
       document.head.getElementsByTagName("style"),
