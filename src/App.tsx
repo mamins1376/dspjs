@@ -94,7 +94,7 @@ const App = () => {
 
           <p>
             حلقه اصلی پردازش در این قسمت از کد است:
-            <AudioHighlight class="language-typescript line-numbers" />
+            <AudioHighlight class="language-typescript" />
           </p>
         </div>
       </div>

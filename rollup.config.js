@@ -82,7 +82,11 @@ function highlight() {
         .slice(start > 0 ? (start - 1) : start, end)
         .join("\n");
 
-      const html = Prism.highlight(code, Prism.languages.typescript, "typescript");
+      const indents = [...code.matchAll(/\n +/g)];
+      const common = indents.reduce((m, i) => Math.min(m, i[0].length), 1/0) - 1;
+      const fixed = code.replace(new RegExp("\n" + " ".repeat(common), "g"), "\n");
+
+      const html = Prism.highlight(fixed, Prism.languages.typescript, "typescript");
       const jsx = H2J.convert(`<pre><code>${html}</code></pre>`);
       const fnx = "<pre {...p}><code {...p}>" + jsx.substring(11)
       const m = `import { h } from "preact";\nexport default p => ${fnx};` +
