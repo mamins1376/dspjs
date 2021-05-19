@@ -5,8 +5,8 @@ import html, { makeHtmlAttributes } from "@rollup/plugin-html";
 import copy from "rollup-plugin-copy";
 import commonjs from "@rollup/plugin-commonjs";
 
-import hljs from "highlight.js/lib/core";
-import hljs_ts from "highlight.js/lib/languages/typescript";
+import Prism from "prismjs";
+import loadPrismLangs from "prismjs/components/";
 import HTMLtoJSX from "htmltojsx";
 import jsxTransform from "jsx-transform";
 
@@ -49,7 +49,7 @@ function try_ext(extensions) {
   };
 }
 
-hljs.registerLanguage("typescript", hljs_ts);
+loadPrismLangs(["typescript"]);
 /** @type {import("rollup").PluginImpl} */
 function highlight() {
   const name = "highlight";
@@ -76,14 +76,17 @@ function highlight() {
       if (id_name !== name || !isAbsolute(file))
         return null;
 
-      const [start, end] = JSON.parse(`[${range}]`);
+      const [start, end] = JSON.parse(`[${range || 1}]`);
       const code = (await readFile(file, { encoding: "utf-8" }))
         .split("\n")
         .slice(start > 0 ? (start - 1) : start, end)
         .join("\n");
 
-      const jsx = H2J.convert(hljs.highlight("typescript", code).value);
-      const m = `import { h } from "preact";\nexport default () => (${jsx});`;
+      const html = Prism.highlight(code, Prism.languages.typescript, "typescript");
+      const jsx = H2J.convert(`<pre><code>${html}</code></pre>`);
+      const fnx = "<pre {...p}><code {...p}>" + jsx.substring(11)
+      const m = `import { h } from "preact";\nexport default p => ${fnx};` +
+        `\nexport const range = [${start}, ${end}];\nexport const file = "${file}";`
       return jsxTransform.fromString(m, { factory: "h" });
     },
   };

@@ -15,12 +15,13 @@ import { h, Ref } from "preact";
 
 import AudioHighlight from "highlight:160,172:./audio";
 
+const audio = new Audio();
+
 const enum AppState { Ready, Opened, Started }
 
 const App = () => {
   const [failure, setFailure] = useState("");
   const [state, setState] = useState(AppState.Ready);
-  const audio = useSingleton(() => new Audio());
 
   const toggle = useCallback(async () => {
     if (audio.is_started) {
@@ -64,8 +65,6 @@ const App = () => {
     [AppState.Started]: ["stop", "توقف", "panic", "ساکت کردن"],
   }[state];
 
-  console.log(AudioHighlight);
-
   return (
     <div class="frame">
       <div class="window">
@@ -93,9 +92,10 @@ const App = () => {
             {b2l && !failure && <button class={b2c} onClick={panic} >{b2l}</button>}
           </div>
 
-          <p>حلقه اصلی پردازش در این قسمت از کد است:</p>
-
-          <AudioHighlight />
+          <p>
+            حلقه اصلی پردازش در این قسمت از کد است:
+            <AudioHighlight class="language-typescript line-numbers" />
+          </p>
         </div>
       </div>
     </div>
@@ -138,13 +138,6 @@ const ErrorView = ({ failure, setFailure }: ErrorViewProps) => {
       </div>
     </div>
   );
-};
-
-type NonVoid<T> = Exclude<NonNullable<T>, void>;
-
-function useSingleton<T>(init: () => NonVoid<T>): NonVoid<T> {
-  const ref: Ref<NonVoid<T>> = useRef(null);
-  return ref.current === null ? (ref.current = init()) : ref.current;
 };
 
 export default App;

@@ -1,4 +1,4 @@
-@import "highlight.js/scss/tomorrow";
+@import "prismjs/themes/prism-coy";
 
 @font-face {
   font-family: Nahid;
@@ -25,6 +25,14 @@ html, body {
 h1 {
   margin: 0;
   font-size: inherit;
+}
+
+pre, code {
+  &[class*="language-"] {
+    direction: ltr;
+    font-family: 'Fira Mono', monospace;
+    font-size: 0.8rem;
+  }
 }
 
 div.frame {
@@ -154,34 +162,5 @@ button.dismiss {
   &:active,
   &:focus {
     background-color: #dddddd;
-  }
-}
-
-div.code-container {
-  transition: max-height 0.8s ease;
-  overflow: hidden;
-
-  iframe {
-    width: 100%;
-    height: inherit;
-    border: none;
-  }
-}
-
-div.emgithub-container {
-  direction: ltr;
-  margin: 0 !important;
-
-  pre, code {
-    font-family: 'Fira Mono', monospace;
-    font-size: 0.8rem;
-  }
-
-  code {
-    padding: unset !important;
-  }
-
-  table {
-    border-right: 1rem solid transparent;
   }
 }
