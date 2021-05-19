@@ -68,21 +68,21 @@ function highlight() {
   return {
     name,
     async resolveId(id, importer) {
-      const [id_name, range, importee] = id.split(":");
+      const [id_name, file, range] = id.split(":");
       if (id_name !== name)
         return null;
 
-      if (isAbsolute(importee))
+      if (isAbsolute(file))
         return id;
 
-      const resolution = await this.resolve(importee, importer, { skipSelf: true });
+      const resolution = await this.resolve(file, importer, { skipSelf: true });
       if (!resolution)
         return;
 
-      return [name, range, resolution.id].join(":");
+      return [name, resolution.id, range].join(":");
     },
     async load(id) {
-      const [id_name, range, file] = id.split(":");
+      const [id_name, file, range] = id.split(":");
       if (id_name !== name || !isAbsolute(file))
         return null;
 

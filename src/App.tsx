@@ -13,7 +13,7 @@ import {
 
 import { h, Ref } from "preact";
 
-import AudioHighlight, { start, end } from "highlight:160,172:./audio";
+import AudioHighlight, { start, end } from "highlight:./audio:160,172";
 
 const pwd = "https://github.com/mamins1376/dspjs/blob/default/src";
 const code_href = `${pwd}/audio.ts#L${start}-L${end}`;
