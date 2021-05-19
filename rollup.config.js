@@ -55,6 +55,16 @@ function highlight() {
   const name = "highlight";
   const H2J = new HTMLtoJSX({ createClass: false });
 
+  const define = obj => Object.entries(obj)
+    .map(([k, v]) => [k,typeof v==="array"?`"${v[0]}"`:v])
+    .reduce((r, [k, v]) => `${r}\nexport const ${k} = ${v};`, "\n");
+
+  const apply = f => obj => Object.fromEntries(f(Object.entries(obj)));
+  const mapper = f => apply(a => a.map(([k, v]) => [k, f(v)]));
+  const checked = f => v => (typeof v === "string" ? f(v) : v);
+  const escape = v => `\n"${v.replace(/"/g,"\\\"").replace(/\n/g, "\\n\" +\n\"")}"`;
+  const contain = mapper(checked(escape));
+
   return {
     name,
     async resolveId(id, importer) {
@@ -76,23 +86,34 @@ function highlight() {
       if (id_name !== name || !isAbsolute(file))
         return null;
 
+      let mod = "import { h } from \"preact\"";
+      mod += define(contain({ file }));
+
       const [start, end] = JSON.parse(`[${range || 1}]`);
-      const code = ("\n" + await readFile(file, { encoding: "utf-8" }))
+      mod += define({ start, end });
+
+      const code = (await readFile(file, { encoding: "utf-8" }))
         .split("\n")
         .slice(start > 0 ? (start - 1) : start, end)
         .join("\n");
+      mod += define(contain({ code }));
 
-      const indents = [...code.matchAll(/\n +/g)];
-      const common = indents.reduce((m, i) => Math.min(m, i[0].length), 1/0) - 1;
-      const fixed = code.replace(new RegExp("\n" + " ".repeat(common), "g"), "\n")
-        .slice(1); // remove new line character prepended just after reading
+      const indents = [...("\n" + code).matchAll(/\n +/g)];
+      const common = indents.reduce((m, i) => Math.min(m, i[0].length), 1/0);
+      const normalized = ("\n" + code)
+        .replace(new RegExp("\n" + " ".repeat(common - 1), "g"), "\n")
+        .slice(1);
+      mod += define(contain({ normalized }));
 
-      const html = Prism.highlight(fixed, Prism.languages.typescript, "typescript");
+      const html = Prism.highlight(normalized, Prism.languages.typescript, "typescript");
+      mod += define(contain({ html }));
+
       const jsx = H2J.convert(`<pre><code>${html}</code></pre>`);
-      const fnx = "<pre {...p}><code {...p}>" + jsx.substring(11)
-      const m = `import { h } from "preact";\nexport default p => ${fnx};` +
-        `\nexport const range = [${start}, ${end}];\nexport const file = "${file}";`
-      return jsxTransform.fromString(m, { factory: "h" });
+      const fnx = `p => <pre {...p}><code {...p}>${jsx.slice(11)};`;
+      const component = jsxTransform.fromString(fnx, { factory: "h" });
+      mod += define({ component });
+
+      return mod + "\n\nexport default component;";
     },
   };
 }
