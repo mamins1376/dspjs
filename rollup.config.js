@@ -77,14 +77,15 @@ function highlight() {
         return null;
 
       const [start, end] = JSON.parse(`[${range || 1}]`);
-      const code = (await readFile(file, { encoding: "utf-8" }))
+      const code = ("\n" + await readFile(file, { encoding: "utf-8" }))
         .split("\n")
         .slice(start > 0 ? (start - 1) : start, end)
         .join("\n");
 
       const indents = [...code.matchAll(/\n +/g)];
       const common = indents.reduce((m, i) => Math.min(m, i[0].length), 1/0) - 1;
-      const fixed = code.replace(new RegExp("\n" + " ".repeat(common), "g"), "\n");
+      const fixed = code.replace(new RegExp("\n" + " ".repeat(common), "g"), "\n")
+        .slice(1); // remove new line character prepended just after reading
 
       const html = Prism.highlight(fixed, Prism.languages.typescript, "typescript");
       const jsx = H2J.convert(`<pre><code>${html}</code></pre>`);
