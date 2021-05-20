@@ -189,10 +189,10 @@ export default [{
     highlight(),
     typescript(),
     alias({
-      entries: [{
-        find: /^(preact(?:\/hooks)?)$/,
-        replacement: "./node_modules/$1/src/index.js",
-      }],
+      entries: {
+        "preact": "./node_modules/preact/dist/preact.mjs",
+        "preact/hooks": "./node_modules/preact/hooks/dist/hooks.mjs",
+      },
     }),
     serve({ contentBase: dir, port: 3000, open: true }),
     terser(terser_options),
