@@ -1,5 +1,3 @@
-export const register_id: string = "custom-worklet";
-
 export const enum State {
   Closed = 0,
   Open = 1,
@@ -156,7 +154,7 @@ async function makeWorkletNode(context: AudioContext): Promise<AudioWorkletNode 
   let effect: AudioWorkletNode;
   try {
     await context.audioWorklet.addModule("worklet.js");
-    effect = new AudioWorkletNode(context, register_id);
+    effect = new AudioWorkletNode(context, Processor.id);
   } catch (e) {
     console.warn("AudioWorklet init failed:", e);
     return;
@@ -167,6 +165,8 @@ async function makeWorkletNode(context: AudioContext): Promise<AudioWorkletNode 
 }
 
 export class Processor {
+  static id = "custom-worklet";
+
   buffer: Float32Array;
   position: Iterable<number>;
 

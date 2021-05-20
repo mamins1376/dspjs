@@ -12,7 +12,7 @@ import {
 
 import { h, Ref } from "preact";
 
-import AudioHighlight, { start, end } from "highlight:./audio:160,172";
+import AudioHighlight, { start, end } from "highlight:./audio:181,193";
 
 export default App;
 

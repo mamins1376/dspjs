@@ -1,6 +1,6 @@
 /// <reference path="../node_modules/types-web/baselines/audioworklet.generated.d.ts" />
 
-import { Processor, register_id } from "./audio";
+import { Processor } from "./audio";
 
 class CustomWorklet extends AudioWorkletProcessor {
   processors?: Processor[];
@@ -40,4 +40,4 @@ class CustomWorklet extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor(register_id, CustomWorklet as any);
+registerProcessor(Processor.id, CustomWorklet as any);
