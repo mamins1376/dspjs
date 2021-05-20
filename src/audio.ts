@@ -1,5 +1,11 @@
 export const register_id: string = "custom-worklet";
 
+export const enum State {
+  Closed = 0,
+  Open = 1,
+  Running = 2,
+}
+
 enum AudioError {
   NotStarted = "NOT_STARTED",
   Insecure = "مطمئن شوید این صفحه با پروتکل امن http<strong>s</strong>) بارگزاری شده است.",
@@ -9,16 +15,43 @@ enum AudioError {
 type EffectNode = AudioWorkletNode | ScriptProcessorNode;
 
 export default class Audio {
-  private _is_open = false;
-  private _is_started = false;
+  private is_open = false;
+  private is_started = false;
 
   private context?: AudioContext;
   private stream?: MediaStream;
   private source?: MediaStreamAudioSourceNode;
   private effect?: EffectNode;
 
-  async open() {
-    if (this._is_open)
+  get state() {
+    return this.is_started ? State.Running :
+      this.is_open ? State.Open : State.Closed;
+  }
+
+  async go(state: State) {
+    if (this.state === state)
+      return;
+
+    if (this.state === State.Closed) {
+      await this.open();
+      if (state === State.Running)
+        this.start();
+    } else if (state === State.Closed) {
+      await this.close();
+    } else if (state === State.Running) {
+      this.start();
+    } else {
+      this.stop();
+    }
+  }
+
+  panic() {
+    if (this.state !== State.Closed)
+      this.effect?.dispatchEvent(new Event("panic"));
+  }
+
+  private async open() {
+    if (this.is_open)
       return;
 
     if (!(
@@ -44,42 +77,38 @@ export default class Audio {
 
     this.effect ??= await makeEffectNode(this.context);
 
-    this._is_open = true;
+    this.is_open = true;
   }
 
-  start() {
-    if (!this._is_open)
+  private start() {
+    if (!this.is_open)
       throw AudioError.NotStarted;
 
-    if (!this._is_started) {
-      this._is_started = true;
+    if (!this.is_started) {
+      this.is_started = true;
 
       this.source!.connect(this.effect!);
       this.effect!.connect(this.context!.destination);
     }
   }
 
-  panic() {
-    this.effect?.dispatchEvent(new Event("panic"));
-  }
-
-  stop() {
-    if (!this._is_open)
+  private stop() {
+    if (!this.is_open)
       throw AudioError.NotStarted;
 
-    if (this._is_started) {
-      this._is_started = false;
+    if (this.is_started) {
+      this.is_started = false;
 
       this.source!.disconnect(this.effect!);
       this.effect!.disconnect(this.context!.destination);
     }
   }
 
-  async close() {
-    if (!this._is_open)
+  private async close() {
+    if (!this.is_open)
       return;
 
-    if (this._is_started)
+    if (this.is_started)
       this.stop();
 
     if (this.stream)
@@ -94,15 +123,7 @@ export default class Audio {
       await this.context.close();
     delete this.context;
 
-    this._is_open = false;
-  }
-
-  get is_open() {
-    return this._is_open;
-  }
-
-  get is_started() {
-    return this._is_started;
+    this.is_open = false;
   }
 }
 
