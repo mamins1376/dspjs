@@ -1,10 +1,8 @@
 import typescript from "@rollup/plugin-typescript";
-import resolve from "@rollup/plugin-node-resolve";
+import alias from "@rollup/plugin-alias";
 import scss from "rollup-plugin-scss";
 import html, { makeHtmlAttributes } from "@rollup/plugin-html";
 import copy from "rollup-plugin-copy";
-import commonjs from "@rollup/plugin-commonjs";
-
 import Prism from "prismjs";
 import loadPrismLangs from "prismjs/components/";
 import HTMLtoJSX from "htmltojsx";
@@ -190,8 +188,12 @@ export default [{
     try_ext(["scss"]),
     highlight(),
     typescript(),
-    resolve(),
-    commonjs(),
+    alias({
+      entries: [{
+        find: /^(preact(?:\/hooks)?)$/,
+        replacement: "./node_modules/$1/src/index.js",
+      }],
+    }),
     serve({ contentBase: dir, port: 3000, open: true }),
     terser(terser_options),
     scss({
@@ -226,8 +228,6 @@ export default [{
   output,
   plugins: [
     typescript(),
-    resolve(),
-    commonjs(),
     terser(terser_options),
     sourcemaps(),
   ],
