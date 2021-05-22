@@ -181,6 +181,8 @@ const terser_options = {
   },
 };
 
+const replacement = `./node_modules/$&/${production ? "dist/$1.m" : "src/index."}js`;
+
 export default [{
   input: "src/main.ts",
   output,
@@ -189,13 +191,7 @@ export default [{
     highlight(),
     typescript(),
     alias({
-      entries: [{
-        find: /^preact$/,
-        replacement: "./node_modules/preact/dist/preact.mjs",
-      }, {
-        find: /^preact\/hooks$/,
-        replacement: "./node_modules/preact/hooks/dist/hooks.mjs",
-      }],
+      entries: [{ find: /^(?:preact\/)?(preact|hooks)$/, replacement }],
     }),
     serve({ contentBase: dir, port: 3000, open: true }),
     terser(terser_options),
