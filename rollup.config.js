@@ -117,9 +117,6 @@ export default {
       targets: [{
         src: "node_modules/nahid-font/dist/Nahid.woff",
         dest: `${dir}/`
-      }, {
-        src: "node_modules/@openfonts/fira-mono_latin/files/fira-mono-latin-400.woff",
-        dest: `${dir}/`
       }],
       copyOnce: true,
     }),
