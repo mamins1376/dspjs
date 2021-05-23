@@ -96,10 +96,11 @@ const useAudio = () => {
   const wrap = (f: () => any) => () => { (async () => {
     if (pending)
       return;
-    setPending(true);
 
     try {
-      await f();
+      const promise = f();
+      setPending(promise instanceof Promise);
+      await promise;
     } catch (e) {
       setError(e);
     } finally {
@@ -114,8 +115,8 @@ const useAudio = () => {
   const open = wrap(() => !running && audio.open());
   const close = wrap(() => audio.close());
   const run = wrap(async () => { await audio.open(); audio.start(); });
-  const stop = () => audio.stop();
-  const panic = () => audio.panic();
+  const stop = wrap(() => audio.stop());
+  const panic = wrap(() => audio.panic());
 
   return { state, pending, opened, running, open, close, run, stop, panic };
 };
