@@ -26,29 +26,12 @@ export default class Audio {
       this.is_open ? State.Open : State.Closed;
   }
 
-  async go(state: State) {
-    if (this.state === state)
-      return;
-
-    if (this.state === State.Closed) {
-      await this.open();
-      if (state === State.Running)
-        this.start();
-    } else if (state === State.Closed) {
-      await this.close();
-    } else if (state === State.Running) {
-      this.start();
-    } else {
-      this.stop();
-    }
-  }
-
   panic() {
     if (this.state !== State.Closed)
       this.effect?.dispatchEvent(new Event("panic"));
   }
 
-  private async open() {
+  async open() {
     if (this.is_open)
       return;
 
@@ -78,7 +61,7 @@ export default class Audio {
     this.is_open = true;
   }
 
-  private start() {
+  start() {
     if (!this.is_open)
       throw AudioError.NotStarted;
 
@@ -90,7 +73,7 @@ export default class Audio {
     }
   }
 
-  private stop() {
+  stop() {
     if (!this.is_open)
       throw AudioError.NotStarted;
 
@@ -102,7 +85,7 @@ export default class Audio {
     }
   }
 
-  private async close() {
+  async close() {
     if (!this.is_open)
       return;
 
