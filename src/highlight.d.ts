@@ -1,7 +1,5 @@
 declare module "highlight:*" {
-  import { FunctionComponent } from "preact";
-  import { JSXInternal } from "preact/src/jsx";
-  type Attributes = JSXInternal.IntrinsicElements;
+  import { h, FunctionComponent } from "preact";
 
   export const file: string;
 
@@ -14,7 +12,9 @@ declare module "highlight:*" {
 
   export const html: string;
 
-  export const component: FunctionComponent<Attributes["pre"] & Attributes["code"]>;
+  type Attributes = h.JSX.IntrinsicElements;
+  type Common = Attributes["pre"] & Attributes["code"];
+  export const component: FunctionComponent<Common>;
 
   export default component;
 }
