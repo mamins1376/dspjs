@@ -7,6 +7,7 @@ import Prism from "prismjs";
 import loadPrismLangs from "prismjs/components/";
 import HTMLtoJSX from "htmltojsx";
 import jsxTransform from "jsx-transform";
+import modify from "rollup-plugin-modify";
 
 import { readFile } from "fs/promises";
 import { isAbsolute } from "path";
@@ -181,6 +182,12 @@ const terser_options = {
   },
 };
 
+const modify_options = {
+  find: /\\u[0-9a-f]{4}/gi,
+  replace: s => String.fromCharCode(parseInt(s.slice(2), 16)),
+  sourcemap: !production,
+};
+
 const replacement = `./node_modules/$&/${production ? "dist/$1.m" : "src/index."}js`;
 
 export default [{
@@ -199,6 +206,7 @@ export default [{
       output: css => styles.push(css),
       outputStyle: production ? "compressed" : "expanded",
     }),
+    modify(modify_options),
     sourcemaps(),
     html({
       attributes: { html: { lang: "fa" } },
@@ -228,6 +236,7 @@ export default [{
   plugins: [
     typescript(),
     terser(terser_options),
+    modify(modify_options),
     sourcemaps(),
   ],
   watch: { clearScreen: false },
