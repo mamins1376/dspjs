@@ -1,3 +1,5 @@
+/// <reference path="./highlight.d.ts" />
+
 import Audio, { State } from "./audio";
 
 import {
@@ -8,6 +10,8 @@ import {
 } from "preact/hooks";
 
 import { h, Ref } from "preact";
+
+import AudioHighlight, { start, end } from "highlight:./audio:164,176";
 
 export default () => (
   <div class="frame">
@@ -23,6 +27,9 @@ export default () => (
     </div>
   </div>
 );
+
+const pwd = "https://github.com/mamins1376/dspjs/blob/default/src";
+const code_href = `${pwd}/audio.ts#L${start}-L${end}`;
 
 const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   const { state, pending, running, close, run, stop, panic } = useAudio();
@@ -60,6 +67,11 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
           <button class={b1c} onClick={b1p} disabled={errored}>{b1l}</button>
           {b2l && !errored && <button class={b2c} onClick={b2p} >{b2l}</button>}
         </div>
+
+        <p>
+          حلقه اصلی پردازش در <a href={code_href}>این قسمت</a> از کد است:
+          <AudioHighlight class="language-typescript" />
+        </p>
       </div>
     </div>
   );

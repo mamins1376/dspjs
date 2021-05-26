@@ -10,6 +10,8 @@ enum AudioError {
   Unsupported = "متأسفانه مروگر شما پشتیبانی نمی‌شود. لطفاً از فایرفاکس ۷۶ یا جدیدتر، و یا کروم ۶۵ یا جدیدتر استفاده کنید.",
 }
 
+type EffectNode = AudioWorkletNode | ScriptProcessorNode;
+
 export default class Audio {
   private is_open = false;
   private is_started = false;
@@ -17,7 +19,7 @@ export default class Audio {
   private context?: AudioContext;
   private stream?: MediaStream;
   private source?: MediaStreamAudioSourceNode;
-  private effect?: ScriptProcessorNode;
+  private effect?: EffectNode;
 
   get state() {
     return this.is_started ? State.Running :
@@ -106,7 +108,11 @@ export default class Audio {
   }
 }
 
-async function makeEffectNode(context: AudioContext): Promise<ScriptProcessorNode> {
+async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
+  const worklet = await makeWorkletNode(context);
+  if (worklet)
+    return worklet;
+
   let processors = [0, 0].map(_ => new Processor(context.sampleRate));
   const effect = context.createScriptProcessor();
 
@@ -121,6 +127,23 @@ async function makeEffectNode(context: AudioContext): Promise<ScriptProcessorNod
 
   effect.addEventListener("panic", () => processors.forEach(p => p.panic()));
 
+  return effect;
+}
+
+async function makeWorkletNode(context: AudioContext): Promise<AudioWorkletNode | void> {
+  if (!context.audioWorklet)
+    return;
+
+  let effect: AudioWorkletNode;
+  try {
+    await context.audioWorklet.addModule("worklet.js");
+    effect = new AudioWorkletNode(context, Processor.id);
+  } catch (e) {
+    console.warn("AudioWorklet init failed:", e);
+    return;
+  }
+
+  effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
   return effect;
 }
 

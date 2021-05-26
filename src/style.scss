@@ -1,6 +1,16 @@
+@import "prismjs/themes/prism-coy";
+
 @font-face {
   font-family: Nahid;
   src: url('./Nahid.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Fira Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('./fira-mono-latin-400.woff') format('woff');
 }
 
 html, body {
@@ -15,6 +25,14 @@ html, body {
 h1 {
   margin: 0;
   font-size: inherit;
+}
+
+pre, code {
+  &[class*="language-"] {
+    direction: ltr;
+    font-family: 'Fira Mono', monospace;
+    font-size: 0.8rem;
+  }
 }
 
 div.frame {

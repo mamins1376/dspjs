@@ -24,12 +24,16 @@
   },
   "homepage": "https://mamins1376.github.io/dspjs",
   "dependencies": {
+    "@openfonts/fira-mono_latin": "^1.44.2",
     "@rollup/plugin-alias": "^3.1.2",
     "@rollup/plugin-html": "^0.2.3",
     "@rollup/plugin-typescript": "^8.2.1",
     "@types/htmltojsx": "^0.0.29",
+    "htmltojsx": "^0.3.0",
+    "jsx-transform": "^2.4.1",
     "nahid-font": "^0.3.0",
     "preact": "^10.5.13",
+    "prismjs": "^1.23.0",
     "rollup-plugin-copy": "^3.4.0",
     "rollup-plugin-livereload": "^2.0.0",
     "rollup-plugin-modify": "^3.0.0",
@@ -38,6 +42,7 @@
     "rollup-plugin-sourcemaps": "^0.6.3",
     "rollup-plugin-terser": "^7.0.2",
     "terser": "^5.7.0",
+    "types-web": "^0.1.11",
     "webrtc-adapter": "^8.0.0"
   }
 }
