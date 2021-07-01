@@ -41,6 +41,7 @@
     "rollup-plugin-serve": "^1.1.0",
     "rollup-plugin-sourcemaps": "^0.6.3",
     "rollup-plugin-terser": "^7.0.2",
+    "sass": "^1.35.1",
     "terser": "^5.7.0",
     "types-web": "^0.1.11",
     "webrtc-adapter": "^8.0.0"

@@ -81,7 +81,11 @@ function highlight() {
       return [name, resolution.id, range].join(":");
     },
     async load(id) {
-      const [id_name, file, range] = id.split(":");
+      let splitted = id.split(":");
+      if (splitted.length === 4)
+        splitted = [splitted[0], splitted.slice(1, -1).join(":"), splitted[3]];
+      const [id_name, file, range] = splitted;
+
       if (id_name !== name || !isAbsolute(file))
         return null;
 
@@ -203,6 +207,7 @@ export default [{
     serve({ contentBase: dir, port: 3000, open: true }),
     terser(terser_options),
     scss({
+      sass: require("sass"),
       output: css => styles.push(css),
       outputStyle: production ? "compressed" : "expanded",
     }),
