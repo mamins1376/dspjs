@@ -12,7 +12,7 @@ import {
 
 import { h, RefObject } from "preact";
 
-import AudioHighlight, { start, end } from "highlight:./audio:224,236";
+import AudioHighlight, { start, end } from "highlight:./audio:2,14";
 
 export default () => (
   <div class="frame">

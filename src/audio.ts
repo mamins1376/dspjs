@@ -1,3 +1,51 @@
+export class Processor {
+  process(x: Float32Array, y: Float32Array) {
+    // x is input buffer, y is output buffer:
+    //      ┌───┐
+    // x ───► + ├─────────────────────┬─► y
+    //      └─▲─┘                     │
+    //        │  ┌───────┐  ┌──────┐  │
+    //       d└──┤ DELAY ◄──┤ -3dB ◄──┘
+    //           └───────┘  └──────┘
+    for (const [i, p] of limit_enumerate(y.length, this.position)) {
+      y[i] = x[i] + this.buffer[p];
+      this.buffer[p] = y[i] * 0.707;
+    }
+  }
+
+  static id = "custom-worklet";
+
+  buffer: Float32Array;
+  position: Iterable<number>;
+
+  constructor(rate: number) {
+    const length = 1 * rate; // one second delay
+    this.buffer = new Float32Array(length);
+    const position = cycle(length);
+    position.return = value => ({ value, done: true });
+    this.position = position;
+  }
+
+  panic() {
+    this.buffer.fill(0);
+  }
+}
+
+function * cycle(period: number): Generator<number, void> {
+  while (true)
+    for (let i = 0; i < period; i++)
+      yield i;
+}
+
+function * limit_enumerate<T>(n: number, iter: Iterable<T>): Generator<[number, T], void> {
+  let i = 0;
+  for (const v of iter) {
+    yield [i, v];
+    if (++i === n)
+      break;
+  }
+}
+
 export const enum State {
   Closed = 0,
   Open = 1,
@@ -215,52 +263,4 @@ async function makeWorkletNode(context: AudioContext): Promise<AudioWorkletNode 
 
   effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
   return effect;
-}
-
-export class Processor {
-  static id = "custom-worklet";
-
-  buffer: Float32Array;
-  position: Iterable<number>;
-
-  constructor(rate: number) {
-    const length = 1 * rate; // one second delay
-    this.buffer = new Float32Array(length);
-    const position = cycle(length);
-    position.return = value => ({ value, done: true });
-    this.position = position;
-  }
-
-  process(x: Float32Array, y: Float32Array) {
-    // x is input buffer, y is output buffer:
-    //      ┌───┐
-    // x ───► + ├─────────────────────┬─► y
-    //      └─▲─┘                     │
-    //        │  ┌───────┐  ┌──────┐  │
-    //       d└──┤ DELAY ◄──┤ -3dB ◄──┘
-    //           └───────┘  └──────┘
-    for (const [i, p] of limit_enumerate(y.length, this.position)) {
-      y[i] = x[i] + this.buffer[p];
-      this.buffer[p] = y[i] * 0.707;
-    }
-  }
-
-  panic() {
-    this.buffer.fill(0);
-  }
-}
-
-function * cycle(period: number): Generator<number, void> {
-  while (true)
-    for (let i = 0; i < period; i++)
-      yield i;
-}
-
-function * limit_enumerate<T>(n: number, iter: Iterable<T>): Generator<[number, T], void> {
-  let i = 0;
-  for (const v of iter) {
-    yield [i, v];
-    if (++i === n)
-      break;
-  }
 }
