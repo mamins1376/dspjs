@@ -112,16 +112,28 @@ export default class Audio {
 
     this.is_open = false;
   }
+
+  recanvas(canvas?: HTMLCanvasElement) {
+    this.visualyser?.recanvas(canvas);
+  }
 }
 
 class VisualiserNode extends AnalyserNode {
   private buffer: Uint8Array;
-  private renderingContext: CanvasRenderingContext2D;
+  private renderingContext!: CanvasRenderingContext2D;
 
   constructor(context: BaseAudioContext, canvas: HTMLCanvasElement, options?: AnalyserOptions) {
     super(context, options);
 
     this.buffer = new Uint8Array(this.frequencyBinCount);
+
+    this.recanvas(canvas);
+
+    this.draw(0);
+  }
+
+  recanvas(canvas?: HTMLCanvasElement) {
+    canvas ??= this.renderingContext.canvas;
 
     const renderingContext = canvas.getContext("2d");
     if (!renderingContext)
@@ -130,8 +142,6 @@ class VisualiserNode extends AnalyserNode {
     renderingContext.fillStyle = "#aad8d3";
     renderingContext.strokeStyle = "#393e46";
     renderingContext.lineWidth = 2;
-
-    this.draw(0);
   }
 
   private draw(_time: DOMHighResTimeStamp) {
