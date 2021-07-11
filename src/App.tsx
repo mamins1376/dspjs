@@ -85,7 +85,7 @@ const Indicator = ({ pending, running, errored }: Record<string, boolean>) => {
 };
 
 const useAudio = () => {
-  const audio = useLazy(() => new Audio());
+  const audio = useOnce(() => new Audio());
   const [error, setError] = useState(undefined as unknown);
   const [state, setState] = useState(audio.state);
   const [pending, setPending] = useState(false);
@@ -121,7 +121,7 @@ const useAudio = () => {
   return { state, pending, opened, running, open, close, run, stop, panic };
 };
 
-const useLazy = <T extends unknown>(init: () => T) => {
+const useOnce = <T extends unknown>(init: () => T) => {
   const ref = useRef(undefined as T);
   return ref.current || (ref.current = init());
 };
