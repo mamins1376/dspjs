@@ -7,11 +7,12 @@ import {
   useState,
   useLayoutEffect,
   useErrorBoundary,
+  useEffect,
 } from "preact/hooks";
 
-import { h, Ref } from "preact";
+import { h, RefObject } from "preact";
 
-import AudioHighlight, { start, end } from "highlight:./audio:164,176";
+import AudioHighlight, { start, end } from "highlight:./audio:224,236";
 
 export default () => (
   <div class="frame">
@@ -32,7 +33,8 @@ const pwd = "https://github.com/mamins1376/dspjs/blob/default/src";
 const code_href = `${pwd}/audio.ts#L${start}-L${end}`;
 
 const Window = ({ errored, ErrorView }: ErrorViewPack) => {
-  const { state, pending, running, close, run, stop, panic } = useAudio();
+  const canvas: RefObject<HTMLCanvasElement> = useRef();
+  const { state, pending, running, close, run, stop, panic } = useAudio(canvas);
 
   const [b1c, b1l, b2c, b2l] = {
     [State.Closed]: ["start", "شروع"],
@@ -41,6 +43,20 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   }[state];
 
   const [b1p, b2p] = running ? [stop, panic] : [run, close];
+
+  useEffect(() => {
+    const handler = () => {
+      const c = canvas.current;
+      if (c) {
+        c.width = c.offsetWidth;
+        c.height = c.offsetHeight;
+      }
+    }
+
+    handler();
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [canvas.current]);
 
   return (
     <div class="window">
@@ -68,6 +84,10 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
           {b2l && !errored && <button class={b2c} onClick={b2p} >{b2l}</button>}
         </div>
 
+        <div class="graphs">
+          <canvas ref={canvas} />
+        </div>
+
         <p>
           حلقه اصلی پردازش در <a href={code_href}>این قسمت</a> از کد است:
           <AudioHighlight class="language-typescript" />
@@ -84,7 +104,7 @@ const Indicator = ({ pending, running, errored }: Record<string, boolean>) => {
   return <span style={`background-color: var(--color-${color});`}>{label}</span>;
 };
 
-const useAudio = () => {
+const useAudio = (canvas: RefObject<HTMLCanvasElement>) => {
   const audio = useOnce(() => new Audio());
   const [error, setError] = useState(undefined as unknown);
   const [state, setState] = useState(audio.state);
@@ -112,9 +132,10 @@ const useAudio = () => {
   const opened = state !== State.Closed;
   const running = state === State.Running;
 
-  const open = wrap(() => !running && audio.open());
+  const open_inner = () => canvas.current && audio.open(canvas.current);
+  const open = wrap(() => !running && open_inner());
   const close = wrap(() => audio.close());
-  const run = wrap(async () => { await audio.open(); audio.start(); });
+  const run = wrap(async () => { await open_inner(); audio.start(); });
   const stop = wrap(() => audio.stop());
   const panic = wrap(() => audio.panic());
 
@@ -134,7 +155,7 @@ interface ErrorViewPack {
 const useErrorView = (): ErrorViewPack => {
   type MaybeError = undefined | string | Error;
   const [error, resetError]: [MaybeError, () => void] = useErrorBoundary();
-  const roller: Ref<HTMLDivElement> = useRef();
+  const roller: RefObject<HTMLDivElement> = useRef();
   const [height, setHeight] = useState(0);
 
   useLayoutEffect(() => roller.current && setHeight(

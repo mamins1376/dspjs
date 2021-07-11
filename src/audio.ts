@@ -20,6 +20,7 @@ export default class Audio {
   private stream?: MediaStream;
   private source?: MediaStreamAudioSourceNode;
   private effect?: EffectNode;
+  private visualyser?: VisualiserNode;
 
   get state() {
     return this.is_started ? State.Running :
@@ -31,7 +32,7 @@ export default class Audio {
       this.effect?.dispatchEvent(new Event("panic"));
   }
 
-  async open() {
+  async open(canvas: HTMLCanvasElement) {
     if (this.is_open)
       return;
 
@@ -58,6 +59,8 @@ export default class Audio {
 
     this.effect ??= await makeEffectNode(this.context);
 
+    this.visualyser ??= new VisualiserNode(this.context, canvas);
+
     this.is_open = true;
   }
 
@@ -69,7 +72,8 @@ export default class Audio {
       this.is_started = true;
 
       this.source!.connect(this.effect!);
-      this.effect!.connect(this.context!.destination);
+      this.effect!.connect(this.visualyser!);
+      this.visualyser!.connect(this.context!.destination);
     }
   }
 
@@ -81,7 +85,8 @@ export default class Audio {
       this.is_started = false;
 
       this.source!.disconnect(this.effect!);
-      this.effect!.disconnect(this.context!.destination);
+      this.effect!.disconnect(this.visualyser!);
+      this.visualyser!.disconnect(this.context!.destination);
     }
   }
 
@@ -99,12 +104,67 @@ export default class Audio {
 
     delete this.source;
     delete this.effect;
+    delete this.visualyser;
 
     if (this.context)
       await this.context.close();
     delete this.context;
 
     this.is_open = false;
+  }
+}
+
+class VisualiserNode extends AnalyserNode {
+  private buffer: Uint8Array;
+  private renderingContext: CanvasRenderingContext2D;
+
+  constructor(context: BaseAudioContext, canvas: HTMLCanvasElement, options?: AnalyserOptions) {
+    super(context, options);
+
+    this.buffer = new Uint8Array(this.frequencyBinCount);
+
+    const renderingContext = canvas.getContext("2d");
+    if (!renderingContext)
+      throw new TypeError("Cannot get rendering context for visualiser canvas");
+    this.renderingContext = renderingContext;
+    renderingContext.fillStyle = "#aad8d3";
+    renderingContext.strokeStyle = "#393e46";
+    renderingContext.lineWidth = 2;
+
+    this.draw(0);
+  }
+
+  private draw(_time: DOMHighResTimeStamp) {
+    requestAnimationFrame(this.draw.bind(this));
+
+    this.getByteTimeDomainData(this.buffer);
+
+    const c = this.renderingContext
+    const [width, height] = [c.canvas.width, c.canvas.height];
+
+    c.fillRect(0, 0, width, height);
+
+    c.beginPath();
+
+    var sliceWidth = width * 1.0 / this.buffer.length;
+    var x = 0;
+
+    for(var i = 0; i < this.buffer.length; i++) {
+
+      var v = this.buffer[i] / 128.0;
+      var y = v * height / 2;
+
+      if(i === 0) {
+        c.moveTo(x, y);
+      } else {
+        c.lineTo(x, y);
+      }
+
+      x += sliceWidth;
+    }
+
+    c.lineTo(width, height / 2);
+    c.stroke();
   }
 }
 
