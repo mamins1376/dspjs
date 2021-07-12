@@ -33,7 +33,7 @@ const pwd = "https://github.com/mamins1376/dspjs/blob/default/src";
 const code_href = `${pwd}/audio.ts#L${start}-L${end}`;
 
 const Window = ({ errored, ErrorView }: ErrorViewPack) => {
-  const [refs, Graphs] = useGraphs();
+  const [refs, setHidden, graphs] = useGraphs();
   const canvases = () => refs.map(c => c.current).filter(c => c) as Canvases;
   const { state, pending, running, close, run, stop, panic, recanvas } = useAudio(canvases);
 
@@ -44,6 +44,8 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   }[state];
 
   const [b1p, b2p] = running ? [stop, panic] : [run, close];
+
+  useEffect(() => setHidden(state === State.Closed), [state]);
 
   useEffect(() => {
     const handler = () => recanvas(canvases());
@@ -79,7 +81,7 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
           {b2l && !errored && <button class={b2c} onClick={b2p} >{b2l}</button>}
         </div>
 
-        { Graphs }
+        { graphs }
 
         <p>
           حلقه اصلی پردازش در <a href={code_href}>این قسمت</a> از کد است:
@@ -97,12 +99,19 @@ const Indicator = ({ pending, running, errored }: Record<string, boolean>) => {
   return <span style={`background-color: var(--color-${color});`}>{label}</span>;
 };
 
-type CanvasRefs = Tuple<RefObject<HTMLCanvasElement>, Canvases["length"]>;
+type CanvasRefs = Tuple<RefObject<HTMLCanvasElement>, typeof numCanvases>;
 
-const useGraphs: () => [CanvasRefs, h.JSX.Element] = () => {
+const useGraphs: () => [CanvasRefs, (hidden: boolean) => void, h.JSX.Element] = () => {
   const refs = Array(numCanvases).fill(null).map(_ => useRef()) as CanvasRefs; 
-  return [refs, (
-    <div class="graphs">
+  const ref: RefObject<HTMLDivElement> = useRef();
+
+  const setHidden = (hidden: boolean) => {
+    if (ref.current)
+      ref.current.dataset.hidden = hidden.toString();
+  };
+
+  return [refs, setHidden, (
+    <div ref={ref} class="graphs">
       { refs.map(r => <canvas ref={r} />) }
     </div>
   )];

@@ -365,6 +365,7 @@ class SpectrogramVisualiser implements Visualiser {
     if (!this.data) {
       context.fillStyle = "black";
       context.fillRect(0, 0, width, 1);
+
       this.data = context.getImageData(0, 0, width, height);
     }
 
