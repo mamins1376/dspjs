@@ -369,7 +369,7 @@ class SpectrogramVisualiser implements Visualiser {
     const { width, height } = context.canvas;
 
     if (!this.data) {
-      context.fillStyle = "black";
+      //context.fillStyle = "black";
       context.fillRect(0, 0, width, 1);
 
       this.data = context.getImageData(0, 0, width, height);
@@ -378,11 +378,12 @@ class SpectrogramVisualiser implements Visualiser {
     const { data } = this.data;
     data.copyWithin(context.canvas.width << 2, 0);
     for (const [i, v] of this.buffer.entries()) {
-      const l = v / 255.0, h = l / 6;
+      //data[i * 4 + 3] = v;
+      const j = i << 2, l = v / 255.0, h = (0 + l) / 5;
       const q = l < 0.5 ? l * 2 : 1, p = 2 * l - q;
-      data[i << 2 + 0] = 255 * hue2rgb(p, q, h + 1 / 3);
-      data[i << 2 + 1] = 255 * hue2rgb(p, q, h);
-      data[i << 2 + 2] = 255 * hue2rgb(p, q, h - 1 / 3);
+      data[j  ] = 255 * hue2rgb(p, q, h + 1 / 3);
+      data[j+1] = 255 * hue2rgb(p, q, h);
+      data[j+2] = 255 * hue2rgb(p, q, h - 1 / 3);
     }
 
     this.context.putImageData(this.data, 0, 0);
@@ -390,12 +391,11 @@ class SpectrogramVisualiser implements Visualiser {
 }
 
 function hue2rgb(p: number, q: number, t: number): number {
-  if (t < 0) t += 1;
-  if (t > 1) t -= 1;
-  if (t < 1 / 6) return p + (q - p) * 6 * t;
-  if (t < 1 / 2) return q;
-  if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-  return p;
+  t = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
+  return t < 1 / 6 ? p + (q - p) * 6 * t
+    : t < 1 / 2 ? q
+    : t < 2 / 3 ? p + (q - p) * 6 * (2 / 3 - t)
+    : p;
 }
 
 async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
