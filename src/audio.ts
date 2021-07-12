@@ -265,21 +265,21 @@ class WaveformVisualiser implements Visualiser {
   draw(_time: DOMHighResTimeStamp, getData: GetData) {
     getData(this.buffer);
 
-    const c = this.context
-    const [width, height] = [c.canvas.width, c.canvas.height];
+    const { context } = this;
+    const { width, height } = context.canvas;
 
-    c.fillRect(0, 0, width, height);
+    context.fillRect(0, 0, width, height);
 
-    c.beginPath();
+    context.beginPath();
 
     for (const [i, v] of this.buffer.entries()) {
       const x = i * width * 1.0 / this.buffer.length;
       const y = v * height / 255.0;
-      i ? c.lineTo(x, y) : c.moveTo(x, y);
+      i ? context.lineTo(x, y) : context.moveTo(x, y);
     }
 
-    c.lineTo(width, height / 2);
-    c.stroke();
+    context.lineTo(width, height / 2);
+    context.stroke();
   }
 }
 
@@ -310,21 +310,21 @@ class SpectrumVisualiser implements Visualiser {
   draw(_time: DOMHighResTimeStamp, getData: GetData) {
     getData(this.buffer);
 
-    const c = this.context
-    const [width, height] = [c.canvas.width, c.canvas.height];
+    const { context } = this;
+    const { width, height } = context.canvas;
 
-    c.fillRect(0, 0, width, height);
+    context.fillRect(0, 0, width, height);
 
-    c.beginPath();
+    context.beginPath();
 
     for (const [i, v] of this.buffer.entries()) {
       const x = i * width * 1.0 / this.buffer.length;
       const y = (1 - v / 255.0) * height;
-      i ? c.lineTo(x, y) : c.moveTo(x, y);
+      i ? context.lineTo(x, y) : context.moveTo(x, y);
     }
 
-    c.lineTo(width, height);
-    c.stroke();
+    context.lineTo(width, height);
+    context.stroke();
   }
 }
 
@@ -348,7 +348,7 @@ class SpectrogramVisualiser implements Visualiser {
     if (!context)
       throw new TypeError("Cannot get rendering context for visualiser canvas");
 
-    const [width, height] = [canvas.width, canvas.height];
+    const { width, height } = canvas;
     context.fillStyle = "#aad8d3";
     context.fillRect(0, 0, width, height);
     this.context = context;
