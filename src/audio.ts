@@ -174,28 +174,28 @@ interface GetData {
 
 class VisualiserNode extends AnalyserNode {
   private waveform: WaveformVisualiser;
-  private spectrum: SpectrumVisualiser;
+  private spectrogram: SpectrogramVisualiser;
 
   constructor(context: BaseAudioContext, canvases: Canvases, options?: AnalyserOptions) {
     super(context, options);
 
     const [waveformCanvas, spectrumCanvas] = canvases;
     this.waveform = new WaveformVisualiser(waveformCanvas, this.frequencyBinCount);
-    this.spectrum = new SpectrumVisualiser(spectrumCanvas, this.frequencyBinCount);
+    this.spectrogram = new SpectrogramVisualiser(spectrumCanvas, this.frequencyBinCount);
 
     this.draw(0);
   }
 
-  recanvas(canvases?: [HTMLCanvasElement, HTMLCanvasElement]) {
+  recanvas(canvases?: Canvases) {
     const [waveformCanvas, spectrumCanvas] = canvases ?? [];
     this.waveform.recanvas(waveformCanvas ?? undefined);
-    this.spectrum.recanvas(spectrumCanvas ?? undefined);
+    this.spectrogram.recanvas(spectrumCanvas ?? undefined);
   }
 
   private draw(time: DOMHighResTimeStamp) {
     requestAnimationFrame(this.draw.bind(this));
     this.waveform.draw(time, this.getByteTimeDomainData.bind(this));
-    this.spectrum.draw(time, this.getByteFrequencyData.bind(this));
+    this.spectrogram.draw(time, this.getByteFrequencyData.bind(this));
   }
 }
 
@@ -253,7 +253,7 @@ class WaveformVisualiser {
   }
 }
 
-class SpectrumVisualiser {
+class SpectrogramVisualiser {
   private buffer: Uint8Array;
   private context!: CanvasRenderingContext2D;
 
