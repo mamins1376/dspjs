@@ -191,9 +191,11 @@ class VisualiserNode extends AnalyserNode {
   }
 
   recanvas(canvases?: Canvases) {
-    const [waveformCanvas, spectrumCanvas] = canvases ?? [];
-    this.waveform.recanvas(waveformCanvas ?? undefined);
-    this.spectrogram.recanvas(spectrumCanvas ?? undefined);
+    const visualisers: Tuple<Visualiser, Canvases["length"]> = [
+      this.waveform,
+      this.spectrogram,
+    ];
+    visualisers.map((v, i) => v.recanvas(canvases && canvases[i]));
   }
 
   private draw(time: DOMHighResTimeStamp) {
@@ -203,7 +205,12 @@ class VisualiserNode extends AnalyserNode {
   }
 }
 
-class WaveformVisualiser {
+interface Visualiser {
+  recanvas(canvas?: HTMLCanvasElement): void;
+  draw(time: DOMHighResTimeStamp, getData: GetData): void;
+}
+
+class WaveformVisualiser implements Visualiser {
   private buffer: Uint8Array;
   private context!: CanvasRenderingContext2D;
 
@@ -257,7 +264,7 @@ class WaveformVisualiser {
   }
 }
 
-class SpectrogramVisualiser {
+class SpectrogramVisualiser implements Visualiser {
   private buffer: Uint8Array;
   private context!: CanvasRenderingContext2D;
 
