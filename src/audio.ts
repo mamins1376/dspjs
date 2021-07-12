@@ -60,7 +60,11 @@ enum AudioError {
 
 type EffectNode = AudioWorkletNode | ScriptProcessorNode;
 
-export type Canvases = [HTMLCanvasElement, HTMLCanvasElement];
+type _TupleOf<T, N extends number, R extends unknown[]> = R["length"] extends N ? R : _TupleOf<T, N, [T, ...R]>;
+export type Tuple<T, N extends number> = N extends N ? number extends N ? T[] : _TupleOf<T, N, []> : never;
+
+export const numCanvases = 2;
+export type Canvases = Tuple<HTMLCanvasElement, typeof numCanvases>;
 
 export default class Audio {
   private is_open = false;

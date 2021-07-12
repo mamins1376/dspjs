@@ -1,6 +1,6 @@
 /// <reference path="./highlight.d.ts" />
 
-import Audio, { Canvases, State } from "./audio";
+import Audio, { Canvases, numCanvases, State, Tuple } from "./audio";
 
 import {
   useRef,
@@ -33,12 +33,8 @@ const pwd = "https://github.com/mamins1376/dspjs/blob/default/src";
 const code_href = `${pwd}/audio.ts#L${start}-L${end}`;
 
 const Window = ({ errored, ErrorView }: ErrorViewPack) => {
-  const timeCanvas: RefObject<HTMLCanvasElement> = useRef();
-  const freqCanvas: RefObject<HTMLCanvasElement> = useRef();
-  const canvases = () => [timeCanvas, freqCanvas]
-    .map(c => c.current)
-    .filter(c => c) as Canvases;
-
+  const [refs, Graphs] = useGraphs();
+  const canvases = () => refs.map(c => c.current).filter(c => c) as Canvases;
   const { state, pending, running, close, run, stop, panic, recanvas } = useAudio(canvases);
 
   const [b1c, b1l, b2c, b2l] = {
@@ -83,10 +79,7 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
           {b2l && !errored && <button class={b2c} onClick={b2p} >{b2l}</button>}
         </div>
 
-        <div class="graphs">
-          <canvas ref={timeCanvas} />
-          <canvas ref={freqCanvas} />
-        </div>
+        { Graphs }
 
         <p>
           حلقه اصلی پردازش در <a href={code_href}>این قسمت</a> از کد است:
@@ -103,6 +96,17 @@ const Indicator = ({ pending, running, errored }: Record<string, boolean>) => {
   ][pending ? 0 : errored ? 1 : running ? 2 : 3];
   return <span style={`background-color: var(--color-${color});`}>{label}</span>;
 };
+
+type CanvasRefs = Tuple<RefObject<HTMLCanvasElement>, Canvases["length"]>;
+
+const useGraphs: () => [CanvasRefs, h.JSX.Element] = () => {
+  const refs = Array(numCanvases).fill(null).map(_ => useRef()) as CanvasRefs; 
+  return [refs, (
+    <div class="graphs">
+      { refs.map(r => <canvas ref={r} />) }
+    </div>
+  )];
+}
 
 const useAudio = (canvases: () => Canvases) => {
   const audio = useOnce(() => new Audio());
