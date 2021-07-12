@@ -63,7 +63,7 @@ type EffectNode = AudioWorkletNode | ScriptProcessorNode;
 type _TupleOf<T, N extends number, R extends unknown[]> = R["length"] extends N ? R : _TupleOf<T, N, [T, ...R]>;
 export type Tuple<T, N extends number> = N extends N ? number extends N ? T[] : _TupleOf<T, N, []> : never;
 
-export const numCanvases = 2;
+export const numCanvases = 3;
 export type Canvases = Tuple<HTMLCanvasElement, typeof numCanvases>;
 
 export default class Audio {
@@ -177,31 +177,31 @@ interface GetData {
 }
 
 class VisualiserNode extends AnalyserNode {
-  private waveform: WaveformVisualiser;
-  private spectrogram: SpectrogramVisualiser;
+  private visualisers: [WaveformVisualiser, SpectrumVisualiser, SpectrogramVisualiser];
 
   constructor(context: BaseAudioContext, canvases: Canvases, options?: AnalyserOptions) {
     super(context, options);
 
-    const [waveformCanvas, spectrumCanvas] = canvases;
-    this.waveform = new WaveformVisualiser(waveformCanvas, this.frequencyBinCount);
-    this.spectrogram = new SpectrogramVisualiser(spectrumCanvas, this.frequencyBinCount);
+    const [waveformCanvas, spectrumCanvas, spectrogramCanvas] = canvases;
+    const waveform = new WaveformVisualiser(waveformCanvas, this.fftSize);
+    const spectrum = new SpectrumVisualiser(spectrumCanvas, this.frequencyBinCount);
+    const spectrogram = new SpectrogramVisualiser(spectrogramCanvas, this.frequencyBinCount);
+    this.visualisers = [waveform, spectrum, spectrogram];
 
     this.draw(0);
   }
 
   recanvas(canvases?: Canvases) {
-    const visualisers: Tuple<Visualiser, Canvases["length"]> = [
-      this.waveform,
-      this.spectrogram,
-    ];
-    visualisers.map((v, i) => v.recanvas(canvases && canvases[i]));
+    this.visualisers.map((v, i) => v.recanvas(canvases && canvases[i]));
   }
 
   private draw(time: DOMHighResTimeStamp) {
     requestAnimationFrame(this.draw.bind(this));
-    this.waveform.draw(time, this.getByteTimeDomainData.bind(this));
-    this.spectrogram.draw(time, this.getByteFrequencyData.bind(this));
+
+    const [waveform, spectrum, spectrogram] = this.visualisers;
+    waveform.draw(time, this.getByteTimeDomainData.bind(this));
+    spectrum.draw(time, this.getByteFrequencyData.bind(this));
+    spectrogram.draw(time, this.getByteFrequencyData.bind(this));
   }
 }
 
@@ -260,6 +260,49 @@ class WaveformVisualiser implements Visualiser {
     }
 
     c.lineTo(width, height / 2);
+    c.stroke();
+  }
+}
+
+class SpectrumVisualiser implements Visualiser {
+  private buffer: Uint8Array;
+  private context!: CanvasRenderingContext2D;
+
+  constructor(canvas: HTMLCanvasElement, length: number) {
+    this.recanvas(canvas);
+    this.buffer = new Uint8Array(length);
+  }
+
+  recanvas(canvas?: HTMLCanvasElement) {
+    canvas ??= this.context.canvas;
+
+    const context = canvas.getContext("2d");
+    if (!context)
+      throw new TypeError("Cannot get rendering context for visualiser canvas");
+
+    context.fillStyle = "#aad8d3";
+    context.strokeStyle = "#393e46";
+    context.lineWidth = 2;
+    this.context = context;
+  }
+
+  draw(_time: DOMHighResTimeStamp, getData: GetData) {
+    getData(this.buffer);
+
+    const c = this.context
+    const [width, height] = [c.canvas.width, c.canvas.height];
+
+    c.fillRect(0, 0, width, height);
+
+    c.beginPath();
+
+    for (const [i, v] of this.buffer.entries()) {
+      const x = i * width * 1.0 / this.buffer.length;
+      const y = (1 - v / 255.0) * height;
+      i ? c.lineTo(x, y) : c.moveTo(x, y);
+    }
+
+    c.lineTo(width, 0);
     c.stroke();
   }
 }
