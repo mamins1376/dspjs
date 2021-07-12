@@ -250,6 +250,9 @@ class WaveformVisualiser implements Visualiser {
   recanvas(canvas?: HTMLCanvasElement) {
     canvas ??= this.context.canvas;
 
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
     const context = canvas.getContext("2d");
     if (!context)
       throw new TypeError("Cannot get rendering context for visualiser canvas");
@@ -294,6 +297,9 @@ class SpectrumVisualiser implements Visualiser {
 
   recanvas(canvas?: HTMLCanvasElement) {
     canvas ??= this.context.canvas;
+
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
 
     const context = canvas.getContext("2d");
     if (!context)
