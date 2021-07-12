@@ -176,8 +176,9 @@ interface GetData {
   (buffer: Uint8Array): void;
 }
 
-class VisualiserNode extends AnalyserNode {
+class VisualiserNode extends AnalyserNode implements AudioNode {
   private visualisers: [WaveformVisualiser, SpectrumVisualiser, SpectrogramVisualiser];
+  private draw_handle?: number;
 
   constructor(context: BaseAudioContext, canvases: Canvases, options?: AnalyserOptions) {
     super(context, options);
@@ -187,16 +188,41 @@ class VisualiserNode extends AnalyserNode {
     const spectrum = new SpectrumVisualiser(spectrumCanvas, this.frequencyBinCount);
     const spectrogram = new SpectrogramVisualiser(spectrogramCanvas, this.frequencyBinCount);
     this.visualisers = [waveform, spectrum, spectrogram];
-
-    this.draw(0);
   }
 
   recanvas(canvases?: Canvases) {
     this.visualisers.map((v, i) => v.recanvas(canvases && canvases[i]));
   }
 
+  // initially i thought using typescript would save time catching bugs, but as
+  // it turns out it is very powerful at wasting time over stupid and simple
+  // matters.
+  // I spent almost 2 hours fighting with the compiler over that function which
+  // has more than one signature on the parent class.
+  //
+  // More info: https://stackoverflow.com/a/59538756/4491972
+  connect(...args: any[]): AudioNode & void {
+    // @ts-ignore
+    const result = super.connect(...args);
+
+    if (this.draw_handle === undefined)
+      this.draw(0);
+
+    return result;
+  }
+
+  disconnect(...args: any[]): void {
+    // @ts-ignore
+    super.disconnect(...args);
+
+    if (this.draw_handle !== undefined) {
+      cancelAnimationFrame(this.draw_handle);
+      delete this.draw_handle;
+    }
+  }
+
   private draw(time: DOMHighResTimeStamp) {
-    requestAnimationFrame(this.draw.bind(this));
+    this.draw_handle = requestAnimationFrame(this.draw.bind(this));
 
     const [waveform, spectrum, spectrogram] = this.visualisers;
     waveform.draw(time, this.getByteTimeDomainData.bind(this));
