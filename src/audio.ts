@@ -158,6 +158,8 @@ export default class Audio {
 
     delete this.source;
     delete this.effect;
+
+    this.visualyser?.recanvas();
     delete this.visualyser;
 
     if (this.context)
@@ -253,6 +255,8 @@ class WaveformVisualiser implements Visualiser {
       throw new TypeError("Cannot get rendering context for visualiser canvas");
 
     context.fillStyle = "#aad8d3";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
     context.strokeStyle = "#393e46";
     context.lineWidth = 2;
     this.context = context;
@@ -296,6 +300,8 @@ class SpectrumVisualiser implements Visualiser {
       throw new TypeError("Cannot get rendering context for visualiser canvas");
 
     context.fillStyle = "#aad8d3";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
     context.strokeStyle = "#393e46";
     context.lineWidth = 2;
     this.context = context;
@@ -324,7 +330,7 @@ class SpectrumVisualiser implements Visualiser {
 
 class SpectrogramVisualiser implements Visualiser {
   private buffer: Uint8Array;
-  private data!: ImageData;
+  private data?: ImageData;
   private context!: CanvasRenderingContext2D;
 
   constructor(canvas: HTMLCanvasElement, length: number) {
@@ -343,18 +349,26 @@ class SpectrogramVisualiser implements Visualiser {
       throw new TypeError("Cannot get rendering context for visualiser canvas");
 
     const [width, height] = [canvas.width, canvas.height];
-    context.fillStyle = "black";
-    context.fillRect(0, 0, width, 1);
     context.fillStyle = "#aad8d3";
-    context.fillRect(0, 1, width, height - 1);
-    this.data = context.getImageData(0, 0, width, height);
+    context.fillRect(0, 0, width, height);
     this.context = context;
+
+    delete this.data;
   }
 
   draw(_time: DOMHighResTimeStamp, getData: GetData) {
     getData(this.buffer);
 
-    const [context, data] = [this.context, this.data.data];
+    const { context } = this;
+    const { width, height } = context.canvas;
+
+    if (!this.data) {
+      context.fillStyle = "black";
+      context.fillRect(0, 0, width, 1);
+      this.data = context.getImageData(0, 0, width, height);
+    }
+
+    const { data } = this.data;
     data.copyWithin(context.canvas.width << 2, 0);
     for (const [i, v] of this.buffer.entries()) {
       data[i << 2] = v;
