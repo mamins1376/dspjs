@@ -242,21 +242,10 @@ class WaveformVisualiser implements Visualiser {
 
     c.beginPath();
 
-    var sliceWidth = width * 1.0 / this.buffer.length;
-    var x = 0;
-
-    for(var i = 0; i < this.buffer.length; i++) {
-
-      var v = this.buffer[i] / 128.0;
-      var y = v * height / 2;
-
-      if(i === 0) {
-        c.moveTo(x, y);
-      } else {
-        c.lineTo(x, y);
-      }
-
-      x += sliceWidth;
+    for (const [i, v] of this.buffer.entries()) {
+      const x = i * width * 1.0 / this.buffer.length;
+      const y = v * height / 255.0;
+      i ? c.lineTo(x, y) : c.moveTo(x, y);
     }
 
     c.lineTo(width, height / 2);
@@ -302,7 +291,7 @@ class SpectrumVisualiser implements Visualiser {
       i ? c.lineTo(x, y) : c.moveTo(x, y);
     }
 
-    c.lineTo(width, 0);
+    c.lineTo(width, height);
     c.stroke();
   }
 }
