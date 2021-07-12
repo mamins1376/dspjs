@@ -1,6 +1,6 @@
 /// <reference path="./highlight.d.ts" />
 
-import Audio, { State } from "./audio";
+import Audio, { Canvases, State } from "./audio";
 
 import {
   useRef,
@@ -33,8 +33,13 @@ const pwd = "https://github.com/mamins1376/dspjs/blob/default/src";
 const code_href = `${pwd}/audio.ts#L${start}-L${end}`;
 
 const Window = ({ errored, ErrorView }: ErrorViewPack) => {
-  const canvas: RefObject<HTMLCanvasElement> = useRef();
-  const { state, pending, running, close, run, stop, panic, recanvas } = useAudio(canvas);
+  const timeCanvas: RefObject<HTMLCanvasElement> = useRef();
+  const freqCanvas: RefObject<HTMLCanvasElement> = useRef();
+  const canvases = () => [timeCanvas, freqCanvas]
+    .map(c => c.current)
+    .filter(c => c) as Canvases;
+
+  const { state, pending, running, close, run, stop, panic, recanvas } = useAudio(canvases);
 
   const [b1c, b1l, b2c, b2l] = {
     [State.Closed]: ["start", "شروع"],
@@ -45,12 +50,12 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   const [b1p, b2p] = running ? [stop, panic] : [run, close];
 
   useEffect(() => {
-    const handler = () => recanvas(canvas.current ?? undefined);
+    const handler = () => recanvas(canvases());
 
     handler();
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
-  }, [canvas.current]);
+  }, canvases());
 
   return (
     <div class="window">
@@ -79,7 +84,8 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
         </div>
 
         <div class="graphs">
-          <canvas ref={canvas} />
+          <canvas ref={timeCanvas} />
+          <canvas ref={freqCanvas} />
         </div>
 
         <p>
@@ -98,7 +104,7 @@ const Indicator = ({ pending, running, errored }: Record<string, boolean>) => {
   return <span style={`background-color: var(--color-${color});`}>{label}</span>;
 };
 
-const useAudio = (canvas: RefObject<HTMLCanvasElement>) => {
+const useAudio = (canvases: () => Canvases) => {
   const audio = useOnce(() => new Audio());
   const [error, setError] = useState(undefined as unknown);
   const [state, setState] = useState(audio.state);
@@ -126,7 +132,7 @@ const useAudio = (canvas: RefObject<HTMLCanvasElement>) => {
   const opened = state !== State.Closed;
   const running = state === State.Running;
 
-  const open_inner = () => canvas.current && audio.open(canvas.current);
+  const open_inner = () => audio.open(canvases());
   const open = wrap(() => !running && open_inner());
   const close = wrap(() => audio.close());
   const run = wrap(async () => { await open_inner(); audio.start(); });

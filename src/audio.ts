@@ -60,6 +60,8 @@ enum AudioError {
 
 type EffectNode = AudioWorkletNode | ScriptProcessorNode;
 
+export type Canvases = [HTMLCanvasElement, HTMLCanvasElement];
+
 export default class Audio {
   private is_open = false;
   private is_started = false;
@@ -80,7 +82,7 @@ export default class Audio {
       this.effect?.dispatchEvent(new Event("panic"));
   }
 
-  async open(canvas: HTMLCanvasElement) {
+  async open(canvases: Canvases) {
     if (this.is_open)
       return;
 
@@ -107,7 +109,7 @@ export default class Audio {
 
     this.effect ??= await makeEffectNode(this.context);
 
-    this.visualyser ??= new VisualiserNode(this.context, canvas);
+    this.visualyser ??= new VisualiserNode(this.context, canvases);
 
     this.is_open = true;
   }
@@ -161,43 +163,122 @@ export default class Audio {
     this.is_open = false;
   }
 
-  recanvas(canvas?: HTMLCanvasElement) {
-    this.visualyser?.recanvas(canvas);
+  recanvas(canvases?: Canvases) {
+    this.visualyser?.recanvas(canvases);
   }
 }
 
-class VisualiserNode extends AnalyserNode {
-  private buffer: Uint8Array;
-  private renderingContext!: CanvasRenderingContext2D;
+interface GetData {
+  (buffer: Uint8Array): void;
+}
 
-  constructor(context: BaseAudioContext, canvas: HTMLCanvasElement, options?: AnalyserOptions) {
+class VisualiserNode extends AnalyserNode {
+  private waveform: WaveformVisualiser;
+  private spectrum: SpectrumVisualiser;
+
+  constructor(context: BaseAudioContext, canvases: Canvases, options?: AnalyserOptions) {
     super(context, options);
 
-    this.buffer = new Uint8Array(this.frequencyBinCount);
-
-    this.recanvas(canvas);
+    const [waveformCanvas, spectrumCanvas] = canvases;
+    this.waveform = new WaveformVisualiser(waveformCanvas, this.frequencyBinCount);
+    this.spectrum = new SpectrumVisualiser(spectrumCanvas, this.frequencyBinCount);
 
     this.draw(0);
   }
 
-  recanvas(canvas?: HTMLCanvasElement) {
-    canvas ??= this.renderingContext.canvas;
-
-    const renderingContext = canvas.getContext("2d");
-    if (!renderingContext)
-      throw new TypeError("Cannot get rendering context for visualiser canvas");
-    this.renderingContext = renderingContext;
-    renderingContext.fillStyle = "#aad8d3";
-    renderingContext.strokeStyle = "#393e46";
-    renderingContext.lineWidth = 2;
+  recanvas(canvases?: [HTMLCanvasElement, HTMLCanvasElement]) {
+    const [waveformCanvas, spectrumCanvas] = canvases ?? [];
+    this.waveform.recanvas(waveformCanvas ?? undefined);
+    this.spectrum.recanvas(spectrumCanvas ?? undefined);
   }
 
-  private draw(_time: DOMHighResTimeStamp) {
+  private draw(time: DOMHighResTimeStamp) {
     requestAnimationFrame(this.draw.bind(this));
+    this.waveform.draw(time, this.getByteTimeDomainData.bind(this));
+    this.spectrum.draw(time, this.getByteFrequencyData.bind(this));
+  }
+}
 
-    this.getByteTimeDomainData(this.buffer);
+class WaveformVisualiser {
+  private buffer: Uint8Array;
+  private context!: CanvasRenderingContext2D;
 
-    const c = this.renderingContext
+  constructor(canvas: HTMLCanvasElement, length: number) {
+    this.recanvas(canvas);
+    this.buffer = new Uint8Array(length);
+  }
+
+  recanvas(canvas?: HTMLCanvasElement) {
+    canvas ??= this.context.canvas;
+
+    const context = canvas.getContext("2d");
+    if (!context)
+      throw new TypeError("Cannot get rendering context for visualiser canvas");
+
+    context.fillStyle = "#aad8d3";
+    context.strokeStyle = "#393e46";
+    context.lineWidth = 2;
+    this.context = context;
+  }
+
+  draw(_time: DOMHighResTimeStamp, getData: GetData) {
+    getData(this.buffer);
+
+    const c = this.context
+    const [width, height] = [c.canvas.width, c.canvas.height];
+
+    c.fillRect(0, 0, width, height);
+
+    c.beginPath();
+
+    var sliceWidth = width * 1.0 / this.buffer.length;
+    var x = 0;
+
+    for(var i = 0; i < this.buffer.length; i++) {
+
+      var v = this.buffer[i] / 128.0;
+      var y = v * height / 2;
+
+      if(i === 0) {
+        c.moveTo(x, y);
+      } else {
+        c.lineTo(x, y);
+      }
+
+      x += sliceWidth;
+    }
+
+    c.lineTo(width, height / 2);
+    c.stroke();
+  }
+}
+
+class SpectrumVisualiser {
+  private buffer: Uint8Array;
+  private context!: CanvasRenderingContext2D;
+
+  constructor(canvas: HTMLCanvasElement, length: number) {
+    this.recanvas(canvas);
+    this.buffer = new Uint8Array(length);
+  }
+
+  recanvas(canvas?: HTMLCanvasElement) {
+    canvas ??= this.context.canvas;
+
+    const context = canvas.getContext("2d");
+    if (!context)
+      throw new TypeError("Cannot get rendering context for visualiser canvas");
+
+    context.fillStyle = "#aad8d3";
+    context.strokeStyle = "#393e46";
+    context.lineWidth = 2;
+    this.context = context;
+  }
+
+  draw(_time: DOMHighResTimeStamp, getData: GetData) {
+    getData(this.buffer);
+
+    const c = this.context
     const [width, height] = [c.canvas.width, c.canvas.height];
 
     c.fillRect(0, 0, width, height);
