@@ -298,55 +298,43 @@ class SpectrumVisualiser implements Visualiser {
 
 class SpectrogramVisualiser implements Visualiser {
   private buffer: Uint8Array;
+  private data!: ImageData;
   private context!: CanvasRenderingContext2D;
 
   constructor(canvas: HTMLCanvasElement, length: number) {
-    this.recanvas(canvas);
     this.buffer = new Uint8Array(length);
+    this.recanvas(canvas);
   }
 
   recanvas(canvas?: HTMLCanvasElement) {
     canvas ??= this.context.canvas;
 
+    canvas.width = this.buffer.length;
+    canvas.height = canvas.offsetHeight * canvas.width / canvas.offsetWidth;
+
     const context = canvas.getContext("2d");
     if (!context)
       throw new TypeError("Cannot get rendering context for visualiser canvas");
 
+    const [width, height] = [canvas.width, canvas.height];
+    context.fillStyle = "black";
+    context.fillRect(0, 0, width, 1);
     context.fillStyle = "#aad8d3";
-    context.strokeStyle = "#393e46";
-    context.lineWidth = 2;
+    context.fillRect(0, 1, width, height - 1);
+    this.data = context.getImageData(0, 0, width, height);
     this.context = context;
   }
 
   draw(_time: DOMHighResTimeStamp, getData: GetData) {
     getData(this.buffer);
 
-    const c = this.context
-    const [width, height] = [c.canvas.width, c.canvas.height];
-
-    c.fillRect(0, 0, width, height);
-
-    c.beginPath();
-
-    var sliceWidth = width * 1.0 / this.buffer.length;
-    var x = 0;
-
-    for(var i = 0; i < this.buffer.length; i++) {
-
-      var v = this.buffer[i] / 128.0;
-      var y = v * height / 2;
-
-      if(i === 0) {
-        c.moveTo(x, y);
-      } else {
-        c.lineTo(x, y);
-      }
-
-      x += sliceWidth;
+    const [context, data] = [this.context, this.data.data];
+    data.copyWithin(context.canvas.width << 2, 0);
+    for (const [i, v] of this.buffer.entries()) {
+      data[i << 2] = v;
     }
 
-    c.lineTo(width, height / 2);
-    c.stroke();
+    this.context.putImageData(this.data, 0, 0);
   }
 }
 
