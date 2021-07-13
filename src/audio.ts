@@ -380,8 +380,13 @@ class SpectrogramVisualiser implements Visualiser {
 
     const { data } = this.data;
     data.copyWithin(context.canvas.width << 2, 0);
-    for (const [i, v] of this.buffer.entries()) {
-      //data[i * 4 + 3] = v;
+
+    const a = Math.pow(this.buffer.length - 1, 1.0 / (width - 1));
+    let f = 1;
+    for (let i = 0; i < width; i++) {
+      const v = interpolate(this.buffer, f);
+      f *= a;
+
       const j = i << 2, l = v / 255.0, h = (0 + l) / 5;
       const q = l < 0.5 ? l * 2 : 1, p = 2 * l - q;
       data[j  ] = 255 * hue2rgb(p, q, h + 1 / 3);
@@ -399,6 +404,12 @@ function hue2rgb(p: number, q: number, t: number): number {
     : t < 1 / 2 ? q
     : t < 2 / 3 ? p + (q - p) * 6 * (2 / 3 - t)
     : p;
+}
+
+function interpolate(b: Uint8Array, x: number): number {
+  const h = Math.ceil(x), l = h - 1, d = x - l;
+  const H = b[h], L = b[l];
+  return L + (H - L) * d;
 }
 
 async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
