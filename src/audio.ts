@@ -323,8 +323,11 @@ class SpectrumVisualiser implements Visualiser {
 
     context.beginPath();
 
-    for (const [i, v] of this.buffer.entries()) {
-      const x = i * width * 1.0 / this.buffer.length;
+    const entries = this.buffer.entries();
+    const x_scale = width * 1.0 / Math.log10(this.buffer.length - 1);
+    entries.next();
+    for (const [i, v] of entries) {
+      const x = Math.log10(i) * x_scale;
       const y = (1 - v / 255.0) * height;
       i ? context.lineTo(x, y) : context.moveTo(x, y);
     }
