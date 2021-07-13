@@ -8,7 +8,7 @@ export class Processor {
     //       d└──┤ DELAY ◄──┤ -3dB ◄──┘
     //           └───────┘  └──────┘
     for (const [i, p] of limit_enumerate(y.length, this.position)) {
-      y[i] = x[i] + this.buffer[p];
+      y[i] = x[i] //+ this.buffer[p];
       this.buffer[p] = y[i] * 0.707;
     }
   }
@@ -86,7 +86,7 @@ export default class Audio {
       this.effect?.dispatchEvent(new Event("panic"));
   }
 
-  async open(canvases: Canvases) {
+  async open(canvases: Canvases, fftSize: number) {
     if (this.is_open)
       return;
 
@@ -113,7 +113,7 @@ export default class Audio {
 
     this.effect ??= await makeEffectNode(this.context);
 
-    this.visualyser ??= new VisualiserNode(this.context, canvases);
+    this.visualyser ??= new VisualiserNode(this.context, canvases, { fftSize });
 
     this.is_open = true;
   }

@@ -35,7 +35,8 @@ const code_href = `${pwd}/audio.ts#L${start}-L${end}`;
 const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   const [refs, setHidden, graphs] = useGraphs();
   const canvases = () => refs.map(c => c.current).filter(c => c) as Canvases;
-  const { state, pending, running, close, run, stop, panic, recanvas } = useAudio(canvases);
+  const { state, pending, running, close, run, stop, panic, recanvas, resize } = useAudio(canvases);
+  const [fftSize, FFTSize] = useFFTSize();
 
   const [b1c, b1l, b2c, b2l] = {
     [State.Closed]: ["start", "شروع"],
@@ -54,6 +55,8 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
   }, canvases());
+
+  useEffect(() => state !== State.Closed ? resize(fftSize) : void 0, [fftSize]);
 
   return (
     <div class="window">
@@ -77,8 +80,9 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
         </p>
 
         <div class="buttons">
-          <button class={b1c} onClick={b1p} disabled={errored}>{b1l}</button>
+          <button class={b1c} onClick={_ => b1p(fftSize)} disabled={errored}>{b1l}</button>
           {b2l && !errored && <button class={b2c} onClick={b2p} >{b2l}</button>}
+          { FFTSize }
         </div>
 
         { graphs }
@@ -98,6 +102,20 @@ const Indicator = ({ pending, running, errored }: Record<string, boolean>) => {
   ][pending ? 0 : errored ? 1 : running ? 2 : 3];
   return <span style={`background-color: var(--color-${color});`}>{label}</span>;
 };
+
+const useFFTSize = (): [number, h.JSX.Element] => {
+  const [power, setPower] = useState(10);
+  const size = 1 << power;
+  return [size, (
+    <div class="fft-size">
+      <span>اندازه فوریه: { size } نقطه</span>
+      <span>
+        <button onClick={() => setPower(power + 1)}>▲</button>
+        <button onClick={() => setPower(power - 1)}>▼</button>
+      </span>
+    </div>
+  )];
+}
 
 type CanvasRefs = Tuple<RefObject<HTMLCanvasElement>, typeof numCanvases>;
 
@@ -126,12 +144,14 @@ const useAudio = (canvases: () => Canvases) => {
   setError(undefined);
   if (error) throw error;
 
-  const wrap = (f: () => any) => () => { (async () => {
+  type Arrow = (...a: any) => any;
+  const wrap = <F extends Arrow>(f: F) => (...a: Parameters<F>) => { (async () => {
     if (pending)
       return;
 
     try {
-      const promise = f();
+      // @ts-ignore
+      const promise = f(...a);
       setPending(promise instanceof Promise);
       await promise;
     } catch (e) {
@@ -145,15 +165,23 @@ const useAudio = (canvases: () => Canvases) => {
   const opened = state !== State.Closed;
   const running = state === State.Running;
 
-  const open_inner = () => audio.open(canvases());
-  const open = wrap(() => !running && open_inner());
-  const close = wrap(() => audio.close());
-  const run = wrap(async () => { await open_inner(); audio.start(); });
-  const stop = wrap(() => audio.stop());
-  const panic = wrap(() => audio.panic());
-  const recanvas = audio.recanvas.bind(audio);
+  const open_inner = (s: number) => audio.open(canvases(), s);
 
-  return { state, pending, opened, running, open, close, run, stop, panic, recanvas };
+  return {
+    state, pending, opened, running,
+    open: wrap((s: number) => !running && open_inner(s)),
+    close: wrap(() => audio.close()),
+    run: wrap(async (s: number) => { await open_inner(s); audio.start(); }),
+    stop: wrap(() => audio.stop()),
+    panic: wrap(() => audio.panic()),
+    recanvas: audio.recanvas.bind(audio),
+    resize: wrap(async (s: number) => {
+      await audio.close();
+      await audio.open(canvases(), s);
+      if (running)
+        audio.start();
+    }),
+  };
 };
 
 const useOnce = <T extends unknown>(init: () => T) => {

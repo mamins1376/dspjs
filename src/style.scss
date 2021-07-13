@@ -120,8 +120,37 @@ div.buttons {
   display: flex;
   flex-direction: row-reverse;
 
-  button {
+  > button {
     margin-right: 1rem;
+  }
+
+  div.fft-size {
+    display: flex;
+    align-items: center;
+    background-color: #eee;
+    color: #393e46;
+    border: 1px solid #ccc;
+    border-radius: 0.25rem;
+    padding: 0.2rem 0.3rem 0;
+    font-size: 0.9rem;
+
+    span:last-child {
+      display: flex;
+      flex-direction: column;
+      margin-right: 0.5rem;
+    }
+
+    button {
+      flex-grow: 1;
+      margin: 0;
+      padding: 0;
+      border: 1px;
+      border-radius: 0;
+      line-height: 1.2em;
+      background-color: transparent;
+      color: inherit;
+      font-size: 0.8em;
+    }
   }
 }
 
@@ -134,7 +163,11 @@ div.graphs {
 
   canvas {
     width: 100%;
-    height: 7.5rem;
+    height: 6rem;
+
+    &:last-child {
+      height: 12rem;
+    }
   }
 }
 
