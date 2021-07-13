@@ -56,7 +56,7 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
     return () => window.removeEventListener("resize", handler);
   }, canvases());
 
-  useEffect(() => state !== State.Closed ? resize(fftSize) : void 0, [fftSize]);
+  useEffect(() => void (state !== State.Closed && resize(fftSize)), [fftSize]);
 
   return (
     <div class="window">
