@@ -110,8 +110,8 @@ const useFFTSize = (): [number, h.JSX.Element] => {
     <div class="fft-size">
       <span>اندازه فوریه: { size } نقطه</span>
       <span>
-        <button onClick={() => setPower(power + 1)}>▲</button>
-        <button onClick={() => setPower(power - 1)}>▼</button>
+        <button onClick={() => setPower(power + 1)} disabled={power >= 15}>▲</button>
+        <button onClick={() => setPower(power - 1)} disabled={power <= 5}>▼</button>
       </span>
     </div>
   )];
