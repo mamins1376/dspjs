@@ -1,4 +1,5 @@
 import initialize, { Processor } from "../target/wasm-pack/processor";
+import { Ready, isMessageData, Module, Panic } from "./api";
 
 export const enum State {
   Closed = 0,
@@ -329,7 +330,10 @@ class SpectrogramVisualiser implements Visualiser {
       //context.fillStyle = "black";
       context.fillRect(0, 0, width, 1);
 
-      this.data = context.getImageData(0, 0, width, height);
+      if (width > 0 && height > 0)
+        this.data = context.getImageData(0, 0, width, height);
+      else
+        return;
     }
 
     const { data } = this.data;
@@ -367,13 +371,9 @@ function interpolate(b: Uint8Array, x: number): number {
 }
 
 async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
-  const url = new URL("processor.wasm", window.location.href);
-
-  const worklet = await makeWorkletNode(context, url);
+  const worklet = await makeWorkletNode(context);
   if (worklet)
     return worklet;
-
-  await initialize(url);
 
   let processors = [0, 0].map(_ => new Processor(context.sampleRate));
   const effect = context.createScriptProcessor();
@@ -392,12 +392,15 @@ async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
   return effect;
 }
 
-async function makeWorkletNode(context: AudioContext, url: URL): Promise<AudioWorkletNode | void> {
+async function makeWorkletNode(context: AudioContext): Promise<AudioWorkletNode | void> {
   if (!context.audioWorklet)
     return;
 
+  const url = new URL("processor.wasm", window.location.href);
+  await initialize(url);
+
   const response = await fetch(url.href);
-  const buffer = await response.arrayBuffer();
+  const module = await response.arrayBuffer();
 
   await context.audioWorklet.addModule("worklet.js");
 
@@ -410,32 +413,32 @@ async function makeWorkletNode(context: AudioContext, url: URL): Promise<AudioWo
     throw error;
   }
 
-  const container: { handler?: EventListener } = {};
-  type Resolver = (arg: any) => void;
-  const initialized: Promise<void> = new Promise((resolve: Resolver, reject: Resolver) => {
-    container.handler = ((content: MessageEvent) => {
-      const map: any = { resolve, reject };
-      const { type, error } = content.data;
-      if (map.hasOwnProperty(type))
-        (map[type])(error);
-      else
-        console.error("invalid message:", content.data);
-    }) as EventListener;
-    effect.port.addEventListener("message", container.handler);
-  })
-
   effect.port.start();
-  effect.port.postMessage({ type: "processor", buffer });
+  effect.port.postMessage(Module.make(module));
 
-  try {
-    await initialized;
-  } catch (e) {
-    console.warn("AudioWorklet init failed:", e);
-    return;
+  while (true) {
+    const { data } = await getMessage(effect.port);
+    if (!isMessageData(data))
+      throw new TypeError(`Unexpected event data for "message": ${data}`);
+    if (!Ready.check(data))
+      throw new TypeError(`Unexpected message while waiting for initialize: ${data}`);
+    const { error } = data;
+    if (error !== undefined)
+      throw new TypeError(`Error while initializing wasm module: ${error}`);
+    break;
   }
 
-  (effect as EventTarget).removeEventListener("message", container.handler!);
-
-  effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
+  effect.addEventListener("panic", () => effect.port.postMessage(Panic.make()));
   return effect;
+}
+
+async function getMessage(target: MessagePort): Promise<MessageEvent> {
+  const container: { listener?: (ev: MessageEvent) => void } = {};
+  const promise: Promise<MessageEvent> = new Promise((resolve) => {
+    container.listener = resolve;
+    target.addEventListener("message", resolve);
+  });
+  const result = await promise;
+  target.removeEventListener("message", container.listener!);
+  return result;
 }

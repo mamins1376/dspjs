@@ -2,6 +2,8 @@
 
 import "./text-decoder";
 
+import { isMessageData, Module, Panic, Ready } from "./api";
+
 import initialize, { Processor } from "../target/wasm-pack/processor";
 
 class CustomWorklet extends AudioWorkletProcessor {
@@ -14,14 +16,17 @@ class CustomWorklet extends AudioWorkletProcessor {
     this.port.start();
   }
 
-  message(content: MessageEvent) {
-    const type = content.data?.type;
-    if (type === "panic") {
-      this.panic()
-    } else if (type === "processor") {
-      initialize(content.data.buffer)
-        .then(() => this.port.postMessage({ type: "resolve" }))
-        .catch(error => this.port.postMessage({ type: "reject", error }));
+  message({ data }: MessageEvent) {
+    if (!isMessageData(data))
+      throw new TypeError(`Invalid message data on worklet thread: ${data}`)
+
+    if (Panic.check(data)) {
+      this.panic();
+    } else if (Module.check(data)) {
+      const ready = (error?: string) => this.port.postMessage(Ready.make(error));
+      initialize((data as Module.Message).module)
+        .then(() => ready())
+        .catch(reason => ready(reason as string));
     }
   }
 
