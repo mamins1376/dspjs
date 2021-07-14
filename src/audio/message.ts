@@ -12,15 +12,22 @@ export namespace Module {
   export const check = (message: any): message is Message => message?.type === type;
 }
 
-export namespace Panic {
+export namespace Time {
   export type Message = ReturnType<typeof make>;
-  export const type = "panic";
-  export const make = () => ({ type });
+  export const type = "time";
+  export const make = (buffer: Float32Array) => ({ type, buffer });
   export const check = (message: any): message is Message => message?.type === type;
 }
 
-export type MessageData = Ready.Message | Panic.Message | Module.Message;
+export namespace Frequency {
+  export type Message = ReturnType<typeof make>;
+  export const type = "frequency";
+  export const make = (buffer: Float32Array) => ({ type, buffer });
+  export const check = (message: any): message is Message => message?.type === type;
+}
+
+export type MessageData = Ready.Message | Module.Message | Time.Message | Frequency.Message;
 export const isMessageData = (data: any): data is MessageData =>
-  [Ready.check, Panic.check, Module.check].some(f => f(data));
+  [Ready.check, Module.check, Time.check, Frequency.check].some(f => f(data));
 
 export const workletId = "custom-worklet";

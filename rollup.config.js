@@ -208,7 +208,7 @@ export default [{
     rust({
       debug: !production,
       verbose: !production,
-      watchPatterns: ["Cargo.toml", "src/**/*.rs"],
+      watchPatterns: ["src/wasm/*"],
     }),
     copy({
       targets: [{

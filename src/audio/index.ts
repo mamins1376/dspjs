@@ -1,7 +1,7 @@
 import "./shim";
 
-import initialize, { Processor } from "../../target/wasm-pack/wasm";
-import { Ready, isMessageData, Module, Panic, workletId } from "./message";
+import initialize, { Analyzer } from "../../target/wasm-pack/wasm";
+import { Ready, isMessageData, Module, workletId } from "./message";
 
 export const enum State {
   Closed = 0,
@@ -15,7 +15,7 @@ enum AudioError {
   Unsupported = "متأسفانه مروگر شما پشتیبانی نمی‌شود. لطفاً از فایرفاکس ۷۶ یا جدیدتر، و یا کروم ۶۵ یا جدیدتر استفاده کنید.",
 }
 
-type EffectNode = AudioWorkletNode | ScriptProcessorNode;
+type AnalyzerNode = AudioWorkletNode | ScriptProcessorNode;
 
 type _TupleOf<T, N extends number, R extends unknown[]> = R["length"] extends N ? R : _TupleOf<T, N, [T, ...R]>;
 export type Tuple<T, N extends number> = N extends N ? number extends N ? T[] : _TupleOf<T, N, []> : never;
@@ -30,17 +30,13 @@ export default class Audio {
   private context?: AudioContext;
   private stream?: MediaStream;
   private source?: MediaStreamAudioSourceNode;
-  private effect?: EffectNode;
+  private analyzer?: AnalyzerNode;
   private visualyser?: VisualiserNode;
+  private muter?: GainNode;
 
   get state() {
     return this.is_started ? State.Running :
       this.is_open ? State.Open : State.Closed;
-  }
-
-  panic() {
-    if (this.state !== State.Closed)
-      this.effect?.dispatchEvent(new Event("panic"));
   }
 
   async open(canvases: Canvases, fftSize: number) {
@@ -68,9 +64,12 @@ export default class Audio {
 
     this.source ??= this.context.createMediaStreamSource(this.stream);
 
-    this.effect ??= await makeEffectNode(this.context);
+    this.analyzer ??= await makeAnalyzerNode(this.context);
 
     this.visualyser ??= new VisualiserNode(this.context, canvases, { fftSize });
+
+    this.muter = this.context.createGain();
+    this.muter.gain.value = 0;
 
     this.is_open = true;
   }
@@ -82,9 +81,10 @@ export default class Audio {
     if (!this.is_started) {
       this.is_started = true;
 
-      this.source!.connect(this.effect!);
-      this.effect!.connect(this.visualyser!);
-      this.visualyser!.connect(this.context!.destination);
+      this.source!.connect(this.analyzer!);
+      this.source!.connect(this.visualyser!);
+      this.visualyser!.connect(this.muter!);
+      this.muter!.connect(this.context!.destination);
     }
   }
 
@@ -95,9 +95,10 @@ export default class Audio {
     if (this.is_started) {
       this.is_started = false;
 
-      this.source!.disconnect(this.effect!);
-      this.effect!.disconnect(this.visualyser!);
-      this.visualyser!.disconnect(this.context!.destination);
+      this.source!.disconnect();
+      this.analyzer!.disconnect();
+      this.visualyser!.disconnect();
+      this.muter!.disconnect();
     }
   }
 
@@ -114,10 +115,12 @@ export default class Audio {
     delete this.stream;
 
     delete this.source;
-    delete this.effect;
+    delete this.analyzer;
 
     this.visualyser?.recanvas();
     delete this.visualyser;
+
+    delete this.muter;
 
     if (this.context)
       await this.context.close();
@@ -372,7 +375,7 @@ function interpolate(b: Uint8Array, x: number): number {
   return L + (H - L) * d;
 }
 
-async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
+async function makeAnalyzerNode(context: AudioContext): Promise<AnalyzerNode> {
   const url = new URL("wasm.wasm", window.location.href);
   const module = await (await fetch(url.href)).arrayBuffer();
 
@@ -380,22 +383,18 @@ async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
   if (worklet)
     return worklet;
 
-  await initialize(module);
-  let processors = [0, 0].map(_ => new Processor(context.sampleRate));
-  const effect = context.createScriptProcessor();
+  console.warn("ScriptProcessorNode version is not implemented yet.");
 
-  effect.addEventListener("audioprocess", (event: any) => {
-    let { inputBuffer, outputBuffer } = event;
-    for (let c = 0; c < outputBuffer.numberOfChannels; c++) {
-      const x = inputBuffer.getChannelData(c);
-      const y = outputBuffer.getChannelData(c);
-      processors[c].process(x, y);
-    }
+  await initialize(module);
+  const analyzer = new Analyzer(2048);
+  const node = context.createScriptProcessor();
+
+  node.addEventListener("audioprocess", ({ inputBuffer }: any) => {
+    if (inputBuffer.numberOfChannels)
+      analyzer.feed(inputBuffer.getChannelData(0));
   });
 
-  effect.addEventListener("panic", () => processors.forEach(p => p.panic()));
-
-  return effect;
+  return node;
 }
 
 async function makeWorkletNode(context: AudioContext, module: ArrayBuffer): Promise<AudioWorkletNode | void> {
@@ -404,20 +403,20 @@ async function makeWorkletNode(context: AudioContext, module: ArrayBuffer): Prom
 
   await context.audioWorklet.addModule("index.js");
 
-  let effect: AudioWorkletNode;
+  let analyzer: AudioWorkletNode;
   try {
-    effect = new AudioWorkletNode(context, workletId);
+    analyzer = new AudioWorkletNode(context, workletId);
   } catch (error) {
     if (error.name === "InvalidStateError")
       return;
     throw error;
   }
 
-  effect.port.start();
-  effect.port.postMessage(Module.make(module));
+  analyzer.port.start();
+  analyzer.port.postMessage(Module.make(module));
 
   while (true) {
-    const { data } = await getMessage(effect.port);
+    const { data } = await getMessage(analyzer.port);
     if (!isMessageData(data))
       throw new TypeError(`Unexpected event data for "message": ${data}`);
     if (!Ready.check(data))
@@ -428,8 +427,7 @@ async function makeWorkletNode(context: AudioContext, module: ArrayBuffer): Prom
     break;
   }
 
-  effect.addEventListener("panic", () => effect.port.postMessage(Panic.make()));
-  return effect;
+  return analyzer;
 }
 
 async function getMessage(target: MessagePort): Promise<MessageEvent> {

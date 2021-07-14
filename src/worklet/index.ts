@@ -2,12 +2,12 @@
 
 import "./decoder";
 
-import { isMessageData, Module, Panic, Ready, workletId } from "../audio/message";
+import { Frequency, isMessageData, Module, Ready, Time, workletId } from "../audio/message";
 
-import initialize, { Processor } from "../../target/wasm-pack/wasm";
+import initialize, { Analyzer } from "../../target/wasm-pack/wasm";
 
 class CustomWorklet extends AudioWorkletProcessor {
-  processors?: Processor[];
+  analyzer?: Analyzer;
 
   constructor() {
     super();
@@ -20,34 +20,30 @@ class CustomWorklet extends AudioWorkletProcessor {
     if (!isMessageData(data))
       throw new TypeError(`Invalid message data on worklet thread: ${data}`)
 
-    if (Panic.check(data)) {
-      this.panic();
-    } else if (Module.check(data)) {
+    if (Module.check(data)) {
       const ready = (error?: string) => this.port.postMessage(Ready.make(error));
-      initialize((data as Module.Message).module)
+      initialize(data.module)
         .then(() => ready())
         .catch((reason: string) => ready(reason));
     }
   }
 
-  process([input,]: Float32Array[][], [output,]: Float32Array[][]) {
-    const n = input.length; // number of channels
+  process([input,]: Float32Array[][]) {
+    if (input.length) {
+      this.analyzer ??= new Analyzer(2048);
 
-    if (n === 0 || n !== output.length)
-      return false;
+      if (this.analyzer.feed(input[0])) {
+        let buffer = new Float32Array(2048);
+        this.analyzer.time(buffer);
+        this.port.postMessage(Time.make(buffer), [buffer.buffer]);
 
-    if (!this.processors || this.processors.length !== n)
-      this.processors = Array(n).fill(null)
-        .map(_ => new Processor(sampleRate));
+        buffer = new Float32Array(2048);
+        this.analyzer.frequency(buffer);
+        this.port.postMessage(Frequency.make(buffer), [buffer.buffer]);
+      }
+    }
 
-    this.processors.forEach((p, k) => p.process(input[k], output[k]));
-
-    return true;
-  }
-
-  panic() {
-    if (this.processors)
-      this.processors.forEach(p => p.panic());
+    return input.length !== 0;
   }
 }
 

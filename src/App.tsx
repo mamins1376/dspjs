@@ -35,16 +35,16 @@ const code_href = `${pwd}/audio.ts#L${start}-L${end}`;
 const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   const [refs, setHidden, graphs] = useGraphs();
   const canvases = () => refs.map(c => c.current).filter(c => c) as Canvases;
-  const { state, pending, running, close, run, stop, panic, recanvas, resize } = useAudio(canvases);
+  const { state, pending, running, close, run, stop, recanvas, resize } = useAudio(canvases);
   const [fftSize, FFTSize] = useFFTSize();
 
   const [b1c, b1l, b2c, b2l] = {
     [State.Closed]: ["start", "شروع"],
     [State.Open]: ["panic", "ادامه", "stop", "بستن"],
-    [State.Running]: ["stop", "توقف", "panic", "ساکت کردن"],
+    [State.Running]: ["stop", "توقف"],
   }[state];
 
-  const [b1p, b2p] = running ? [stop, panic] : [run, close];
+  const b1p = running ? stop : run;
 
   useEffect(() => setHidden(state === State.Closed), [state]);
 
@@ -81,7 +81,7 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
 
         <div class="buttons">
           <button class={b1c} onClick={_ => b1p(fftSize)} disabled={errored}>{b1l}</button>
-          {b2l && !errored && <button class={b2c} onClick={b2p} >{b2l}</button>}
+          {b2l && !errored && <button class={b2c} onClick={close} >{b2l}</button>}
           { FFTSize }
         </div>
 
@@ -173,7 +173,6 @@ const useAudio = (canvases: () => Canvases) => {
     close: wrap(() => audio.close()),
     run: wrap(async (s: number) => { await open_inner(s); audio.start(); }),
     stop: wrap(() => audio.stop()),
-    panic: wrap(() => audio.panic()),
     recanvas: audio.recanvas.bind(audio),
     resize: wrap(async (s: number) => {
       await audio.close();
