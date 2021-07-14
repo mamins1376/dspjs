@@ -133,6 +133,7 @@ div.buttons {
     border-radius: 0.25rem;
     padding: 0.2rem 0.3rem 0;
     font-size: 0.9rem;
+    user-select: none;
 
     span:last-child {
       display: flex;

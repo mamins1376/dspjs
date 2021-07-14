@@ -373,10 +373,14 @@ function interpolate(b: Uint8Array, x: number): number {
 }
 
 async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
-  const worklet = await makeWorkletNode(context);
+  const url = new URL("wasm.wasm", window.location.href);
+  const module = await (await fetch(url.href)).arrayBuffer();
+
+  const worklet = await makeWorkletNode(context, module);
   if (worklet)
     return worklet;
 
+  await initialize(module);
   let processors = [0, 0].map(_ => new Processor(context.sampleRate));
   const effect = context.createScriptProcessor();
 
@@ -394,15 +398,9 @@ async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
   return effect;
 }
 
-async function makeWorkletNode(context: AudioContext): Promise<AudioWorkletNode | void> {
+async function makeWorkletNode(context: AudioContext, module: ArrayBuffer): Promise<AudioWorkletNode | void> {
   if (!context.audioWorklet)
     return;
-
-  const url = new URL("wasm.wasm", window.location.href);
-  await initialize(url);
-
-  const response = await fetch(url.href);
-  const module = await response.arrayBuffer();
 
   await context.audioWorklet.addModule("index.js");
 
