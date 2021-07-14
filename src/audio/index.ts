@@ -30,8 +30,8 @@ export default class Audio {
   private context?: AudioContext;
   private stream?: MediaStream;
   private source?: MediaStreamAudioSourceNode;
-  private analyzer?: AnalyzerNode;
-  private visualyser?: VisualiserNode;
+  private analyser?: AnalyserNode;
+  private visualyser?: Visualizer;
   private muter?: GainNode;
 
   get state() {
@@ -39,7 +39,7 @@ export default class Audio {
       this.is_open ? State.Open : State.Closed;
   }
 
-  async open(canvases: Canvases, fftSize: number) {
+  async open(canvases: Canvases, size: number) {
     if (this.is_open)
       return;
 
@@ -64,12 +64,13 @@ export default class Audio {
 
     this.source ??= this.context.createMediaStreamSource(this.stream);
 
-    this.analyzer ??= await makeAnalyzerNode(this.context);
-
-    this.visualyser ??= new VisualiserNode(this.context, canvases, { fftSize });
+    this.analyser ??= this.context.createAnalyser();
+    this.analyser.fftSize = size;
 
     this.muter = this.context.createGain();
     this.muter.gain.value = 0;
+
+    this.visualyser ??= new Visualizer(this.analyser, canvases);
 
     this.is_open = true;
   }
@@ -81,10 +82,11 @@ export default class Audio {
     if (!this.is_started) {
       this.is_started = true;
 
-      this.source!.connect(this.analyzer!);
-      this.source!.connect(this.visualyser!);
-      this.visualyser!.connect(this.muter!);
+      this.source!.connect(this.analyser!);
+      this.analyser!.connect(this.muter!);
       this.muter!.connect(this.context!.destination);
+
+      this.visualyser!.start();
     }
   }
 
@@ -96,9 +98,10 @@ export default class Audio {
       this.is_started = false;
 
       this.source!.disconnect();
-      this.analyzer!.disconnect();
-      this.visualyser!.disconnect();
+      this.analyser!.disconnect();
       this.muter!.disconnect();
+
+      this.visualyser!.stop();
     }
   }
 
@@ -115,7 +118,7 @@ export default class Audio {
     delete this.stream;
 
     delete this.source;
-    delete this.analyzer;
+    delete this.analyser;
 
     this.visualyser?.recanvas();
     delete this.visualyser;
@@ -138,45 +141,31 @@ interface GetData {
   (buffer: Uint8Array): void;
 }
 
-class VisualiserNode extends AnalyserNode implements AudioNode {
-  private visualisers: [WaveformVisualiser, SpectrumVisualiser, SpectrogramVisualiser];
+class Visualizer {
+  private analyser: AnalyserNode;
+  private drawers: [Waveform, Spectrum, Spectrogram];
   private draw_handle?: number;
 
-  constructor(context: BaseAudioContext, canvases: Canvases, options?: AnalyserOptions) {
-    super(context, options);
+  constructor(analyser: AnalyserNode, canvases: Canvases) {
+    this.analyser = analyser;
 
     const [waveformCanvas, spectrumCanvas, spectrogramCanvas] = canvases;
-    const waveform = new WaveformVisualiser(waveformCanvas, this.fftSize);
-    const spectrum = new SpectrumVisualiser(spectrumCanvas, this.frequencyBinCount);
-    const spectrogram = new SpectrogramVisualiser(spectrogramCanvas, this.frequencyBinCount);
-    this.visualisers = [waveform, spectrum, spectrogram];
+    const waveform = new Waveform(waveformCanvas, analyser.fftSize);
+    const spectrum = new Spectrum(spectrumCanvas, analyser.frequencyBinCount);
+    const spectrogram = new Spectrogram(spectrogramCanvas, analyser.frequencyBinCount);
+    this.drawers = [waveform, spectrum, spectrogram];
   }
 
   recanvas(canvases?: Canvases) {
-    this.visualisers.map((v, i) => v.recanvas(canvases && canvases[i]));
+    this.drawers.map((v, i) => v.recanvas(canvases && canvases[i]));
   }
 
-  // initially i thought using typescript would save time catching bugs, but as
-  // it turns out it is very powerful at wasting time over stupid and simple
-  // matters.
-  // I spent almost 2 hours fighting with the compiler over that function which
-  // has more than one signature on the parent class.
-  //
-  // More info: https://stackoverflow.com/a/59538756/4491972
-  connect(...args: any[]): AudioNode & void {
-    // @ts-ignore
-    const result = super.connect(...args);
-
+  start() {
     if (this.draw_handle === undefined)
       this.draw(0);
-
-    return result;
   }
 
-  disconnect(...args: any[]): void {
-    // @ts-ignore
-    super.disconnect(...args);
-
+  stop() {
     if (this.draw_handle !== undefined) {
       cancelAnimationFrame(this.draw_handle);
       delete this.draw_handle;
@@ -186,19 +175,14 @@ class VisualiserNode extends AnalyserNode implements AudioNode {
   private draw(time: DOMHighResTimeStamp) {
     this.draw_handle = requestAnimationFrame(this.draw.bind(this));
 
-    const [waveform, spectrum, spectrogram] = this.visualisers;
-    waveform.draw(time, this.getByteTimeDomainData.bind(this));
-    spectrum.draw(time, this.getByteFrequencyData.bind(this));
-    spectrogram.draw(time, this.getByteFrequencyData.bind(this));
+    const [waveform, spectrum, spectrogram] = this.drawers;
+    waveform.draw(time, this.analyser.getByteTimeDomainData.bind(this.analyser));
+    spectrum.draw(time, this.analyser.getByteFrequencyData.bind(this.analyser));
+    spectrogram.draw(time, this.analyser.getByteFrequencyData.bind(this.analyser));
   }
 }
 
-interface Visualiser {
-  recanvas(canvas?: HTMLCanvasElement): void;
-  draw(time: DOMHighResTimeStamp, getData: GetData): void;
-}
-
-class WaveformVisualiser implements Visualiser {
+class Waveform {
   private buffer: Uint8Array;
   private context!: CanvasRenderingContext2D;
 
@@ -246,7 +230,7 @@ class WaveformVisualiser implements Visualiser {
   }
 }
 
-class SpectrumVisualiser implements Visualiser {
+class Spectrum {
   private buffer: Uint8Array;
   private context!: CanvasRenderingContext2D;
 
@@ -297,7 +281,7 @@ class SpectrumVisualiser implements Visualiser {
   }
 }
 
-class SpectrogramVisualiser implements Visualiser {
+class Spectrogram {
   private buffer: Uint8Array;
   private data?: ImageData;
   private context!: CanvasRenderingContext2D;
