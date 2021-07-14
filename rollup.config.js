@@ -3,6 +3,7 @@ import alias from "@rollup/plugin-alias";
 import scss from "rollup-plugin-scss";
 import html, { makeHtmlAttributes } from "@rollup/plugin-html";
 import copy from "rollup-plugin-copy";
+import rust from "@wasm-tool/rollup-plugin-rust";
 import Prism from "prismjs";
 import loadPrismLangs from "prismjs/components/";
 import HTMLtoJSX from "htmltojsx";
@@ -48,7 +49,7 @@ function try_ext(extensions) {
   };
 }
 
-loadPrismLangs(["typescript"]);
+loadPrismLangs(["rust"]);
 /** @type {import("rollup").PluginImpl} */
 function highlight() {
   const name = "highlight";
@@ -108,7 +109,7 @@ function highlight() {
         .slice(1);
       mod += define(contain({ normalized }));
 
-      const html = Prism.highlight(normalized, Prism.languages.typescript, "typescript");
+      const html = Prism.highlight(normalized, Prism.languages.rust, "rust");
       mod += define(contain({ html }));
 
       const jsx = H2J.convert(`<pre><code>${html}</code></pre>`);
@@ -192,17 +193,43 @@ const modify_options = {
   sourcemap: !production,
 };
 
+const common_entries = [
+  { find: /^\.\.\/target\/[a-z/\-]+$/, replacement: "$&/index.js" },
+];
+
 const replacement = `./node_modules/$&/${production ? "dist/$1.m" : "src/index."}js`;
 
 export default [{
+  input: "Cargo.toml",
+  output: {
+    dir: "target",
+  },
+  plugins: [
+    rust({
+      debug: !production,
+      verbose: !production,
+      watchPatterns: ["Cargo.toml", "src/**/*.rs"],
+    }),
+    copy({
+      targets: [{
+        src: "target/wasm-pack/processor/index_bg.wasm",
+        dest: dir,
+        rename: "processor.wasm"
+      }],
+    }),
+  ],
+}, {
   input: "src/main.ts",
   output,
   plugins: [
-    try_ext(["scss"]),
+    try_ext(["scss", "rs"]),
     highlight(),
     typescript(),
     alias({
-      entries: [{ find: /^(?:preact\/)?(preact|hooks)$/, replacement }],
+      entries: [
+        ...common_entries,
+        { find: /^(?:preact\/)?(preact|hooks)$/, replacement },
+      ],
     }),
     serve({ contentBase: dir, port: 3000, open: true }),
     terser(terser_options),
@@ -239,8 +266,10 @@ export default [{
   input: "src/worklet.ts",
   output,
   plugins: [
+    try_ext(["rs"]),
     typescript(),
     terser(terser_options),
+    alias({ entries: common_entries }),
     modify(modify_options),
     sourcemaps(),
   ],

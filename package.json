@@ -29,6 +29,7 @@
     "@rollup/plugin-html": "^0.2.3",
     "@rollup/plugin-typescript": "^8.2.1",
     "@types/htmltojsx": "^0.0.29",
+    "@wasm-tool/rollup-plugin-rust": "^1.0.6",
     "htmltojsx": "^0.3.0",
     "jsx-transform": "^2.4.1",
     "nahid-font": "^0.3.0",

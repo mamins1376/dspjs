@@ -1,6 +1,8 @@
 /// <reference path="../node_modules/types-web/baselines/audioworklet.generated.d.ts" />
 
-import { Processor } from "./audio";
+import "./text-decoder";
+
+import initialize, { Processor } from "../target/wasm-pack/processor";
 
 class CustomWorklet extends AudioWorkletProcessor {
   processors?: Processor[];
@@ -16,6 +18,10 @@ class CustomWorklet extends AudioWorkletProcessor {
     const type = content.data?.type;
     if (type === "panic") {
       this.panic()
+    } else if (type === "processor") {
+      initialize(content.data.buffer)
+        .then(() => this.port.postMessage({ type: "resolve" }))
+        .catch(error => this.port.postMessage({ type: "reject", error }));
     }
   }
 
@@ -40,4 +46,4 @@ class CustomWorklet extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor(Processor.id, CustomWorklet as any);
+registerProcessor(Processor.id(), CustomWorklet as any);

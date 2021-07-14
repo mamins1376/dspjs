@@ -1,50 +1,4 @@
-export class Processor {
-  process(x: Float32Array, y: Float32Array) {
-    // x is input buffer, y is output buffer:
-    //      ┌───┐
-    // x ───► + ├─────────────────────┬─► y
-    //      └─▲─┘                     │
-    //        │  ┌───────┐  ┌──────┐  │
-    //       d└──┤ DELAY ◄──┤ -3dB ◄──┘
-    //           └───────┘  └──────┘
-    for (const [i, p] of limit_enumerate(y.length, this.position)) {
-      y[i] = x[i] //+ this.buffer[p];
-      this.buffer[p] = y[i] * 0.707;
-    }
-  }
-
-  static id = "custom-worklet";
-
-  buffer: Float32Array;
-  position: Iterable<number>;
-
-  constructor(rate: number) {
-    const length = 1 * rate; // one second delay
-    this.buffer = new Float32Array(length);
-    const position = cycle(length);
-    position.return = value => ({ value, done: true });
-    this.position = position;
-  }
-
-  panic() {
-    this.buffer.fill(0);
-  }
-}
-
-function * cycle(period: number): Generator<number, void> {
-  while (true)
-    for (let i = 0; i < period; i++)
-      yield i;
-}
-
-function * limit_enumerate<T>(n: number, iter: Iterable<T>): Generator<[number, T], void> {
-  let i = 0;
-  for (const v of iter) {
-    yield [i, v];
-    if (++i === n)
-      break;
-  }
-}
+import initialize, { Processor } from "../target/wasm-pack/processor";
 
 export const enum State {
   Closed = 0,
@@ -413,9 +367,13 @@ function interpolate(b: Uint8Array, x: number): number {
 }
 
 async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
-  const worklet = await makeWorkletNode(context);
+  const url = new URL("processor.wasm", window.location.href);
+
+  const worklet = await makeWorkletNode(context, url);
   if (worklet)
     return worklet;
+
+  await initialize(url);
 
   let processors = [0, 0].map(_ => new Processor(context.sampleRate));
   const effect = context.createScriptProcessor();
@@ -434,18 +392,49 @@ async function makeEffectNode(context: AudioContext): Promise<EffectNode> {
   return effect;
 }
 
-async function makeWorkletNode(context: AudioContext): Promise<AudioWorkletNode | void> {
+async function makeWorkletNode(context: AudioContext, url: URL): Promise<AudioWorkletNode | void> {
   if (!context.audioWorklet)
     return;
 
+  const response = await fetch(url.href);
+  const buffer = await response.arrayBuffer();
+
+  await context.audioWorklet.addModule("worklet.js");
+
   let effect: AudioWorkletNode;
   try {
-    await context.audioWorklet.addModule("worklet.js");
-    effect = new AudioWorkletNode(context, Processor.id);
+    effect = new AudioWorkletNode(context, Processor.id());
+  } catch (error) {
+    if (error.name === "InvalidStateError")
+      return;
+    throw error;
+  }
+
+  const container: { handler?: EventListener } = {};
+  type Resolver = (arg: any) => void;
+  const initialized: Promise<void> = new Promise((resolve: Resolver, reject: Resolver) => {
+    container.handler = ((content: MessageEvent) => {
+      const map: any = { resolve, reject };
+      const { type, error } = content.data;
+      if (map.hasOwnProperty(type))
+        (map[type])(error);
+      else
+        console.error("invalid message:", content.data);
+    }) as EventListener;
+    effect.port.addEventListener("message", container.handler);
+  })
+
+  effect.port.start();
+  effect.port.postMessage({ type: "processor", buffer });
+
+  try {
+    await initialized;
   } catch (e) {
     console.warn("AudioWorklet init failed:", e);
     return;
   }
+
+  (effect as EventTarget).removeEventListener("message", container.handler!);
 
   effect.addEventListener("panic", () => effect.port.postMessage({ type: "panic" }));
   return effect;
