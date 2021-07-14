@@ -1,5 +1,5 @@
 [package]
-name = "processor"
+name = "wasm"
 version = "0.1.0"
 authors = ["Mohammad Amin Sameti <mamins1376@gmail.com>"]
 edition = "2018"
@@ -8,8 +8,8 @@ repository = "https://github.com/mamins1376/dspjs"
 license = "MIT"
 
 [lib]
-name = "processor"
-path = "src/processor.rs"
+name = "wasm"
+path = "lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]

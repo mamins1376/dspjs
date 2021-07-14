@@ -1,5 +1,7 @@
-import initialize, { Processor } from "../target/wasm-pack/processor";
-import { Ready, isMessageData, Module, Panic } from "./api";
+import "./shim";
+
+import initialize, { Processor } from "../../target/wasm-pack/wasm";
+import { Ready, isMessageData, Module, Panic } from "./message";
 
 export const enum State {
   Closed = 0,
@@ -396,13 +398,13 @@ async function makeWorkletNode(context: AudioContext): Promise<AudioWorkletNode 
   if (!context.audioWorklet)
     return;
 
-  const url = new URL("processor.wasm", window.location.href);
+  const url = new URL("wasm.wasm", window.location.href);
   await initialize(url);
 
   const response = await fetch(url.href);
   const module = await response.arrayBuffer();
 
-  await context.audioWorklet.addModule("worklet.js");
+  await context.audioWorklet.addModule("index.js");
 
   let effect: AudioWorkletNode;
   try {

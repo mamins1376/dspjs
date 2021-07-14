@@ -1,7 +1,5 @@
 import "./style";
 
-import "./shim";
-
 import App from "./App";
 
 import { h, render } from "preact";

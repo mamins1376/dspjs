@@ -194,13 +194,13 @@ const modify_options = {
 };
 
 const common_entries = [
-  { find: /^\.\.\/target\/[a-z/\-]+$/, replacement: "$&/index.js" },
+  { find: /^\.\.\/\.\.\/target\/[a-z/\-]+$/, replacement: "$&/index.js" },
 ];
 
 const replacement = `./node_modules/$&/${production ? "dist/$1.m" : "src/index."}js`;
 
 export default [{
-  input: "Cargo.toml",
+  input: "src/wasm/Cargo.toml",
   output: {
     dir: "target",
   },
@@ -212,9 +212,9 @@ export default [{
     }),
     copy({
       targets: [{
-        src: "target/wasm-pack/processor/index_bg.wasm",
+        src: "target/wasm-pack/wasm/index_bg.wasm",
         dest: dir,
-        rename: "processor.wasm"
+        rename: "wasm.wasm",
       }],
     }),
   ],
@@ -263,7 +263,7 @@ export default [{
   ],
   watch: { clearScreen: false },
 }, {
-  input: "src/worklet.ts",
+  input: "src/worklet/index.ts",
   output,
   plugins: [
     try_ext(["rs"]),
