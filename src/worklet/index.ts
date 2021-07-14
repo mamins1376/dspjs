@@ -1,6 +1,6 @@
 /// <reference path="../../node_modules/types-web/baselines/audioworklet.generated.d.ts" />
 
-import "./text-decoder";
+import "./decoder";
 
 import { isMessageData, Module, Panic, Ready } from "../audio/message";
 
