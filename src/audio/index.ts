@@ -1,7 +1,7 @@
 import "./shim";
 
 import initialize, { Processor } from "../../target/wasm-pack/wasm";
-import { Ready, isMessageData, Module, Panic } from "./message";
+import { Ready, isMessageData, Module, Panic, workletId } from "./message";
 
 export const enum State {
   Closed = 0,
@@ -406,7 +406,7 @@ async function makeWorkletNode(context: AudioContext, module: ArrayBuffer): Prom
 
   let effect: AudioWorkletNode;
   try {
-    effect = new AudioWorkletNode(context, Processor.id());
+    effect = new AudioWorkletNode(context, workletId);
   } catch (error) {
     if (error.name === "InvalidStateError")
       return;

@@ -2,7 +2,7 @@
 
 import "./decoder";
 
-import { isMessageData, Module, Panic, Ready } from "../audio/message";
+import { isMessageData, Module, Panic, Ready, workletId } from "../audio/message";
 
 import initialize, { Processor } from "../../target/wasm-pack/wasm";
 
@@ -51,4 +51,4 @@ class CustomWorklet extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor(Processor.id(), CustomWorklet as any);
+registerProcessor(workletId, CustomWorklet as any);

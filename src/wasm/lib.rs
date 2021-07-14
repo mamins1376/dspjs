@@ -1,3 +1,5 @@
+#![no_std]
+
 extern crate alloc;
 
 use wee_alloc::WeeAlloc;
@@ -18,10 +20,6 @@ pub struct Processor {
 
 #[wasm_bindgen]
 impl Processor {
-    pub fn id() -> String {
-        "custom-worklet".into()
-    }
-
     #[wasm_bindgen(constructor)]
     pub fn new(rate: usize) -> Result<Processor, JsValue> {
         let duration = 1; // one second delay

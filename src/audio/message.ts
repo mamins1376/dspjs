@@ -22,3 +22,5 @@ export namespace Panic {
 export type MessageData = Ready.Message | Panic.Message | Module.Message;
 export const isMessageData = (data: any): data is MessageData =>
   [Ready.check, Panic.check, Module.check].some(f => f(data));
+
+export const workletId = "custom-worklet";
