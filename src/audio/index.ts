@@ -327,32 +327,32 @@ class Spectrogram {
     const a = Math.pow(this.buffer.length - 1, 1.0 / (width - 1));
     let f = 1;
     for (let i = 0; i < width; i++) {
-      const v = interpolate(this.buffer, f);
+      const v = Spectrogram.interpolate(this.buffer, f);
       f *= a;
 
       const j = i << 2, l = v, h = (0 + l) / 5;
       const q = l < 0.5 ? l * 2 : 1, p = 2 * l - q;
-      data[j  ] = 255 * hue2rgb(p, q, h + 1 / 3);
-      data[j+1] = 255 * hue2rgb(p, q, h);
-      data[j+2] = 255 * hue2rgb(p, q, h - 1 / 3);
+      data[j  ] = 255 * Spectrogram.hue2rgb(p, q, h + 1 / 3);
+      data[j+1] = 255 * Spectrogram.hue2rgb(p, q, h);
+      data[j+2] = 255 * Spectrogram.hue2rgb(p, q, h - 1 / 3);
     }
 
     this.context.putImageData(this.data, 0, 0);
   }
-}
 
-function hue2rgb(p: number, q: number, t: number): number {
-  t = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
-  return t < 1 / 6 ? p + (q - p) * 6 * t
-    : t < 1 / 2 ? q
-    : t < 2 / 3 ? p + (q - p) * 6 * (2 / 3 - t)
-    : p;
-}
+  private static interpolate(b: Float32Array, x: number): number {
+    const h = Math.ceil(x), l = h - 1, d = x - l;
+    const H = b[h], L = b[l];
+    return L + (H - L) * d;
+  }
 
-function interpolate(b: Float32Array, x: number): number {
-  const h = Math.ceil(x), l = h - 1, d = x - l;
-  const H = b[h], L = b[l];
-  return L + (H - L) * d;
+  private static hue2rgb(p: number, q: number, t: number): number {
+    t = t < 0 ? t + 1 : t > 1 ? t - 1 : t;
+    return t < 1 / 6 ? p + (q - p) * 6 * t
+      : t < 1 / 2 ? q
+      : t < 2 / 3 ? p + (q - p) * 6 * (2 / 3 - t)
+      : p;
+  }
 }
 
 class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
@@ -394,7 +394,7 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
     me.port.postMessage(Module.make(module, me.options()));
 
     while (true) {
-      const { data } = await getMessage(me.port);
+      const { data } = await me.getMessage();
       if (!isMessageData(data))
         throw new TypeError(`Unexpected event data for "message": ${data}`);
       if (!Ready.check(data))
@@ -406,6 +406,17 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
     }
 
     return me;
+  }
+
+  private async getMessage(): Promise<MessageEvent> {
+    const container: { listener?: (ev: MessageEvent) => void } = {};
+    const promise: Promise<MessageEvent> = new Promise((resolve) => {
+      container.listener = resolve;
+      this.port.addEventListener("message", resolve);
+    });
+    const result = await promise;
+    this.port.removeEventListener("message", container.listener!);
+    return result;
   }
 
   constructor(context: AudioContext, options?: AnalyserOptions) {
@@ -439,44 +450,37 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
     if (!isMessageData(data))
       throw new TypeError(`not valid message data: ${data}`)
 
-    if (Time.check(data)) {
-      this.floats[0] = data.buffer;
-    } else if (Frequency.check(data)) {
-      this.floats[1] = data.buffer;
+    if (Time.check(data) || Frequency.check(data))
+      this.setBuffer(Frequency.check(data), data.buffer);
+  }
+
+  private setBuffer(isFrequency: boolean, buffer: Float32Array) {
+    const [s, l] = [this.fftSize >> +isFrequency, buffer.length];
+    if (l !== s) {
+      const type = isFrequency ? "frequency" : "time";
+      throw new TypeError(`${type} buffer size mismatch: ${l} (must be ${s})`)
     }
+    this.floats[+isFrequency] = buffer;
   }
 
   private floats: Tuple<Float32Array, 2>;
   private bytes: Tuple<Uint8Array, 2>;
 
   getFloatTimeDomainData(array: Float32Array) {
-    console.log(`TDOM: ${array.length}, ${this.floats[0].length}`);
-    array.set(this.floats[0]);
+    array.set(this.floats[0].slice(0, array.length));
   }
 
   getFloatFrequencyData(array: Float32Array) {
-    console.log(`FDOM: ${array.length}, ${this.floats[1].length}`);
-    array.set(this.floats[1]);
+    array.set(this.floats[1].slice(0, array.length));
   }
 
   getByteTimeDomainData(array: Uint8Array) {
-    array.set(this.bytes[0]);
+    //array.set(this.bytes[0]);
     throw new TypeError("unimplemented");
   }
 
   getByteFrequencyData(array: Uint8Array) {
-    array.set(this.bytes[1]);
+    //array.set(this.bytes[1]);
     throw new TypeError("unimplemented");
   }
-}
-
-async function getMessage(target: MessagePort): Promise<MessageEvent> {
-  const container: { listener?: (ev: MessageEvent) => void } = {};
-  const promise: Promise<MessageEvent> = new Promise((resolve) => {
-    container.listener = resolve;
-    target.addEventListener("message", resolve);
-  });
-  const result = await promise;
-  target.removeEventListener("message", container.listener!);
-  return result;
 }
