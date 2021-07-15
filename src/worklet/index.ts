@@ -2,12 +2,13 @@
 
 import "./decoder";
 
-import { Frequency, isMessageData, Module, Ready, Time, workletId } from "../audio/message";
+import { Frequency, isMessageData, Module, Ready, Change, Time, workletId } from "../audio/message";
 
 import initialize, { Analyzer } from "../../target/wasm-pack/wasm";
 
 class CustomWorklet extends AudioWorkletProcessor {
   analyzer?: Analyzer;
+  options?: Module.Options;
 
   constructor() {
     super();
@@ -25,12 +26,16 @@ class CustomWorklet extends AudioWorkletProcessor {
       initialize(data.module)
         .then(() => ready())
         .catch((reason: string) => ready(reason));
+      this.options = data.options;
+    } else if (Change.check(data)) {
+      delete this.analyzer;
+      this.options = data.options;
     }
   }
 
   process([input,]: Float32Array[][]) {
     if (input.length) {
-      this.analyzer ??= new Analyzer(2048);
+      this.analyzer ??= new Analyzer(this.options!.fftSize);
 
       if (this.analyzer.feed(input[0])) {
         let buffer = new Float32Array(2048);

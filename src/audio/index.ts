@@ -1,7 +1,6 @@
 import "./shim";
 
-import initialize, { Analyzer } from "../../target/wasm-pack/wasm";
-import { Ready, isMessageData, Module, workletId } from "./message";
+import { Ready, isMessageData, Module, workletId, Change, Time, Frequency } from "./message";
 
 export const enum State {
   Closed = 0,
@@ -14,8 +13,6 @@ enum AudioError {
   Insecure = "مطمئن شوید این صفحه با پروتکل امن http<strong>s</strong>) بارگزاری شده است.",
   Unsupported = "متأسفانه مروگر شما پشتیبانی نمی‌شود. لطفاً از فایرفاکس ۷۶ یا جدیدتر، و یا کروم ۶۵ یا جدیدتر استفاده کنید.",
 }
-
-type AnalyzerNode = AudioWorkletNode | ScriptProcessorNode;
 
 type _TupleOf<T, N extends number, R extends unknown[]> = R["length"] extends N ? R : _TupleOf<T, N, [T, ...R]>;
 export type Tuple<T, N extends number> = N extends N ? number extends N ? T[] : _TupleOf<T, N, []> : never;
@@ -30,7 +27,7 @@ export default class Audio {
   private context?: AudioContext;
   private stream?: MediaStream;
   private source?: MediaStreamAudioSourceNode;
-  private analyser?: AnalyserNode;
+  private analyser?: WorkletAnalyzerNode;
   private visualyser?: Visualizer;
   private muter?: GainNode;
 
@@ -39,7 +36,7 @@ export default class Audio {
       this.is_open ? State.Open : State.Closed;
   }
 
-  async open(canvases: Canvases, size: number) {
+  async open(canvases: Canvases, fftSize: number) {
     if (this.is_open)
       return;
 
@@ -64,8 +61,7 @@ export default class Audio {
 
     this.source ??= this.context.createMediaStreamSource(this.stream);
 
-    this.analyser ??= this.context.createAnalyser();
-    this.analyser.fftSize = size;
+    this.analyser ??= await WorkletAnalyzerNode.make(this.context, { fftSize });
 
     this.muter = this.context.createGain();
     this.muter.gain.value = 0;
@@ -138,7 +134,7 @@ export default class Audio {
 }
 
 interface GetData {
-  (buffer: Uint8Array): void;
+  (buffer: Float32Array): void;
 }
 
 class Visualizer {
@@ -146,13 +142,13 @@ class Visualizer {
   private drawers: [Waveform, Spectrum, Spectrogram];
   private draw_handle?: number;
 
-  constructor(analyser: AnalyserNode, canvases: Canvases) {
-    this.analyser = analyser;
+  constructor(analyzer: AnalyserNode, canvases: Canvases) {
+    this.analyser = analyzer;
 
     const [waveformCanvas, spectrumCanvas, spectrogramCanvas] = canvases;
-    const waveform = new Waveform(waveformCanvas, analyser.fftSize);
-    const spectrum = new Spectrum(spectrumCanvas, analyser.frequencyBinCount);
-    const spectrogram = new Spectrogram(spectrogramCanvas, analyser.frequencyBinCount);
+    const waveform = new Waveform(waveformCanvas, analyzer.fftSize);
+    const spectrum = new Spectrum(spectrumCanvas, analyzer.frequencyBinCount);
+    const spectrogram = new Spectrogram(spectrogramCanvas, analyzer.frequencyBinCount);
     this.drawers = [waveform, spectrum, spectrogram];
   }
 
@@ -176,19 +172,19 @@ class Visualizer {
     this.draw_handle = requestAnimationFrame(this.draw.bind(this));
 
     const [waveform, spectrum, spectrogram] = this.drawers;
-    waveform.draw(time, this.analyser.getByteTimeDomainData.bind(this.analyser));
-    spectrum.draw(time, this.analyser.getByteFrequencyData.bind(this.analyser));
-    spectrogram.draw(time, this.analyser.getByteFrequencyData.bind(this.analyser));
+    waveform.draw(time, this.analyser.getFloatTimeDomainData.bind(this.analyser));
+    spectrum.draw(time, this.analyser.getFloatFrequencyData.bind(this.analyser));
+    spectrogram.draw(time, this.analyser.getFloatFrequencyData.bind(this.analyser));
   }
 }
 
 class Waveform {
-  private buffer: Uint8Array;
+  private buffer: Float32Array;
   private context!: CanvasRenderingContext2D;
 
   constructor(canvas: HTMLCanvasElement, length: number) {
     this.recanvas(canvas);
-    this.buffer = new Uint8Array(length);
+    this.buffer = new Float32Array(length);
   }
 
   recanvas(canvas?: HTMLCanvasElement) {
@@ -221,7 +217,7 @@ class Waveform {
 
     for (const [i, v] of this.buffer.entries()) {
       const x = i * width * 1.0 / this.buffer.length;
-      const y = v * height / 255.0;
+      const y = v * height;
       i ? context.lineTo(x, y) : context.moveTo(x, y);
     }
 
@@ -231,12 +227,12 @@ class Waveform {
 }
 
 class Spectrum {
-  private buffer: Uint8Array;
+  private buffer: Float32Array;
   private context!: CanvasRenderingContext2D;
 
   constructor(canvas: HTMLCanvasElement, length: number) {
     this.recanvas(canvas);
-    this.buffer = new Uint8Array(length);
+    this.buffer = new Float32Array(length);
   }
 
   recanvas(canvas?: HTMLCanvasElement) {
@@ -272,7 +268,7 @@ class Spectrum {
     entries.next();
     for (const [i, v] of entries) {
       const x = Math.log10(i) * x_scale;
-      const y = (1 - v / 255.0) * height;
+      const y = (1 - v) * height;
       i ? context.lineTo(x, y) : context.moveTo(x, y);
     }
 
@@ -282,12 +278,12 @@ class Spectrum {
 }
 
 class Spectrogram {
-  private buffer: Uint8Array;
+  private buffer: Float32Array;
   private data?: ImageData;
   private context!: CanvasRenderingContext2D;
 
   constructor(canvas: HTMLCanvasElement, length: number) {
-    this.buffer = new Uint8Array(length);
+    this.buffer = new Float32Array(length);
     this.recanvas(canvas);
   }
 
@@ -334,7 +330,7 @@ class Spectrogram {
       const v = interpolate(this.buffer, f);
       f *= a;
 
-      const j = i << 2, l = v / 255.0, h = (0 + l) / 5;
+      const j = i << 2, l = v, h = (0 + l) / 5;
       const q = l < 0.5 ? l * 2 : 1, p = 2 * l - q;
       data[j  ] = 255 * hue2rgb(p, q, h + 1 / 3);
       data[j+1] = 255 * hue2rgb(p, q, h);
@@ -353,65 +349,125 @@ function hue2rgb(p: number, q: number, t: number): number {
     : p;
 }
 
-function interpolate(b: Uint8Array, x: number): number {
+function interpolate(b: Float32Array, x: number): number {
   const h = Math.ceil(x), l = h - 1, d = x - l;
   const H = b[h], L = b[l];
   return L + (H - L) * d;
 }
 
-async function makeAnalyzerNode(context: AudioContext): Promise<AnalyzerNode> {
-  const url = new URL("wasm.wasm", window.location.href);
-  const module = await (await fetch(url.href)).arrayBuffer();
+class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
+  private len: number;
 
-  const worklet = await makeWorkletNode(context, module);
-  if (worklet)
-    return worklet;
-
-  console.warn("ScriptProcessorNode version is not implemented yet.");
-
-  await initialize(module);
-  const analyzer = new Analyzer(2048);
-  const node = context.createScriptProcessor();
-
-  node.addEventListener("audioprocess", ({ inputBuffer }: any) => {
-    if (inputBuffer.numberOfChannels)
-      analyzer.feed(inputBuffer.getChannelData(0));
-  });
-
-  return node;
-}
-
-async function makeWorkletNode(context: AudioContext, module: ArrayBuffer): Promise<AudioWorkletNode | void> {
-  if (!context.audioWorklet)
-    return;
-
-  await context.audioWorklet.addModule("index.js");
-
-  let analyzer: AudioWorkletNode;
-  try {
-    analyzer = new AudioWorkletNode(context, workletId);
-  } catch (error) {
-    if (error.name === "InvalidStateError")
-      return;
-    throw error;
+  get fftSize() {
+    return this.len;
   }
 
-  analyzer.port.start();
-  analyzer.port.postMessage(Module.make(module));
+  set fftSize(len: number) {
+    //if ((len & (len - 1)) !== 0)
+    //  throw new TypeError(`fftSize must be a power of 2: ${len}`);
+    //if (len < 32 || len > 32768)
+    //  throw new TypeError(`fftSize must be in range: ${len}`);
+    this.len = len;
+    this.port.postMessage(Change.make(this.options()));
+  }
 
-  while (true) {
-    const { data } = await getMessage(analyzer.port);
+  get frequencyBinCount() {
+    return this.len >> 1;
+  }
+
+  maxDecibels: number;
+  minDecibels: number;
+  smoothingTimeConstant: number;
+
+  static async make(context: AudioContext, options?: AnalyserOptions): Promise<WorkletAnalyzerNode> {
+    if (!context.audioWorklet)
+      throw new TypeError("AudioWorklet API is not supported on this browser");
+
+    await context.audioWorklet.addModule("index.js");
+
+    const me = new WorkletAnalyzerNode(context, options);
+    me.port.start();
+
+    const url = new URL("wasm.wasm", window.location.href);
+    const module = await (await fetch(url.href)).arrayBuffer();
+
+    me.port.postMessage(Module.make(module, me.options()));
+
+    while (true) {
+      const { data } = await getMessage(me.port);
+      if (!isMessageData(data))
+        throw new TypeError(`Unexpected event data for "message": ${data}`);
+      if (!Ready.check(data))
+        throw new TypeError(`Unexpected message while waiting for initialize: ${data}`);
+      const { error } = data;
+      if (error !== undefined)
+        throw new TypeError(`Error while initializing wasm module: ${error}`);
+      break;
+    }
+
+    return me;
+  }
+
+  constructor(context: AudioContext, options?: AnalyserOptions) {
+    super(context, workletId, options);
+    this.len = options?.fftSize ?? 2048;
+    this.maxDecibels = options?.maxDecibels ?? -30;
+    this.minDecibels = options?.minDecibels ?? -100;
+    this.smoothingTimeConstant = options?.smoothingTimeConstant ?? 0.8;
+
+    this.floats = Array(2) as Tuple<Float32Array, 2>;
+    this.floats[0] = new Float32Array(this.len);
+    this.floats[1] = new Float32Array(this.len);
+
+    this.bytes = Array(2) as Tuple<Uint8Array, 2>;
+    this.bytes[0] = new Uint8Array(this.len);
+    this.bytes[1] = new Uint8Array(this.len);
+
+    this.port.addEventListener("message", ev => this.message(ev));
+  }
+
+  private options(): Module.Options {
+    return {
+      fftSize: this.len,
+      maxDecibels: this.maxDecibels,
+      minDecibels: this.minDecibels,
+      smoothingTimeConstant: this.smoothingTimeConstant,
+    }
+  }
+
+  private message({ data }: MessageEvent) {
     if (!isMessageData(data))
-      throw new TypeError(`Unexpected event data for "message": ${data}`);
-    if (!Ready.check(data))
-      throw new TypeError(`Unexpected message while waiting for initialize: ${data}`);
-    const { error } = data;
-    if (error !== undefined)
-      throw new TypeError(`Error while initializing wasm module: ${error}`);
-    break;
+      throw new TypeError(`not valid message data: ${data}`)
+
+    if (Time.check(data)) {
+      this.floats[0] = data.buffer;
+    } else if (Frequency.check(data)) {
+      this.floats[1] = data.buffer;
+    }
   }
 
-  return analyzer;
+  private floats: Tuple<Float32Array, 2>;
+  private bytes: Tuple<Uint8Array, 2>;
+
+  getFloatTimeDomainData(array: Float32Array) {
+    console.log(`TDOM: ${array.length}, ${this.floats[0].length}`);
+    array.set(this.floats[0]);
+  }
+
+  getFloatFrequencyData(array: Float32Array) {
+    console.log(`FDOM: ${array.length}, ${this.floats[1].length}`);
+    array.set(this.floats[1]);
+  }
+
+  getByteTimeDomainData(array: Uint8Array) {
+    array.set(this.bytes[0]);
+    throw new TypeError("unimplemented");
+  }
+
+  getByteFrequencyData(array: Uint8Array) {
+    array.set(this.bytes[1]);
+    throw new TypeError("unimplemented");
+  }
 }
 
 async function getMessage(target: MessagePort): Promise<MessageEvent> {

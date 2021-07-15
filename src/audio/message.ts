@@ -6,9 +6,17 @@ export namespace Ready {
 }
 
 export namespace Module {
+  export type Options = Required<Omit<AnalyserOptions, keyof AudioNodeOptions>>;
   export type Message = ReturnType<typeof make>;
   export const type = "module";
-  export const make = (module: ArrayBuffer) => ({ type, module });
+  export const make = (module: ArrayBuffer, options: Options) => ({ type, module, options });
+  export const check = (message: any): message is Message => message?.type === type;
+}
+
+export namespace Change {
+  export type Message = ReturnType<typeof make>;
+  export const type = "resize";
+  export const make = (options: Module.Options) => ({ type, options });
   export const check = (message: any): message is Message => message?.type === type;
 }
 
