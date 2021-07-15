@@ -2,11 +2,13 @@
 
 extern crate alloc;
 
+use core::f32::consts::PI;
+
 use wee_alloc::WeeAlloc;
 use wasm_bindgen::prelude::*;
 use rustfft::{Fft, FftDirection, num_complex::Complex, algorithm::Radix4};
 
-use alloc::{boxed::Box, vec, format};
+use alloc::{boxed::Box, vec};
 
 #[global_allocator]
 static ALLOC: WeeAlloc = WeeAlloc::INIT;
@@ -43,17 +45,21 @@ impl Buffer {
 #[wasm_bindgen]
 pub struct Analyzer {
     fft: Radix4<f32>,
+
     buffer: Box<[Complex<f32>]>,
     scratch: Box<[Complex<f32>]>,
-    time1: Buffer,
-    time2: Buffer,
-    frequency: Box<[f32]>,
+
+    input: Buffer,
+
+    time: Box<[u8]>,
+    frequency: Box<[u8]>,
+    dbs: (f32, f32),
 }
 
 #[wasm_bindgen]
 impl Analyzer {
     #[wasm_bindgen(constructor)]
-    pub fn new(size: usize) -> Analyzer {
+    pub fn new(size: usize, min: f32, max: f32, _smooth: f32) -> Analyzer {
 
         let fft = Radix4::new(size, FftDirection::Forward);
         let buffer = vec![0f32.into(); size].into();
@@ -61,76 +67,68 @@ impl Analyzer {
         let slen = fft.get_inplace_scratch_len();
         let scratch = vec![0f32.into(); slen].into();
 
-        let time1 = Buffer::new(size);
-        let time2 = Buffer::new(size);
-        let frequency = vec![0f32; size >> 1].into();
+        let input = Buffer::new(size);
 
-        Analyzer { fft, scratch, buffer, time1, time2, frequency }
-    }
+        let time = vec![0; size].into();
+        let frequency = vec![0; size >> 1].into();
 
-    fn status(&self) -> (bool, bool) {
-        (self.time1.is_full(), self.time2.is_full())
+        let dbs = (min, max);
+
+        Analyzer { fft, scratch, buffer, input, time, frequency, dbs }
     }
 
     #[wasm_bindgen]
-    pub fn feed(&mut self, buffer: &[f32]) -> Result<bool, JsValue> {
-        let (full, main, init) = match self.status() {
-            (false, false) => (&mut self.time1, &mut self.time2, true),
-            (true , false) => (&mut self.time1, &mut self.time2, false),
-            (false, true ) => (&mut self.time2, &mut self.time1, false),
-            (true , true ) => return Err("BOTH FULL BUG!".into()),
-        };
+    pub fn feed(&mut self, buffer: &[f32]) -> bool {
+        let remaining = self.input.fill(buffer);
 
-        if buffer.is_empty() {
-            return Ok(false)
+        if !self.input.is_full() {
+            return false
         }
 
-        let remaining = main.fill(buffer);
+        self.time.iter_mut()
+            .zip(&*self.input.buffer)
+            .for_each(|(d, s)| *d = (128f32 * (1f32 + s)) as u8);
 
-        if init {
-            return self.feed(remaining)
-        }
-
-        if !main.is_full() {
-            return Ok(false)
-        }
-
-        self.buffer.iter_mut()
-            .zip(&*main.buffer)
-            .for_each(|(d, s)| *d = s.into());
+        let len = self.input.buffer.len() as f32;
+        self.input.buffer.iter()
+            .enumerate()
+            .map(|(n, &v)| v * Self::blackman((n as f32) / len))
+            .zip(self.buffer.iter_mut())
+            .for_each(|(s, d)| *d = s.into());
 
         self.fft.process_with_scratch(&mut self.buffer, &mut self.scratch);
 
+        let (l, h) = self.dbs;
+        let scale = 255f32 / (h - l);
         self.buffer.iter()
+            .map(|c| (c.norm() / len).log10() * 20f32)
+            .map(|c| scale * (c - l))
             .zip(self.frequency.iter_mut())
-            .for_each(|(s, d)| *d = s.norm());
+            .for_each(|(s, d)| *d = s as u8);
 
-        full.empty();
+        self.input.empty();
 
-        if full.fill(remaining).is_empty() {
-            Ok(true)
+        if remaining.is_empty() {
+            true
         } else {
-            Err(format!("Buffer is too big: {}", buffer.len()).into())
+            self.feed(remaining)
         }
     }
 
     #[wasm_bindgen]
-    pub fn time(&self, buf: &mut [f32]) -> bool {
-        let time = match self.status() {
-            (true, false) => Some(&*self.time1.buffer),
-            (false, true) => Some(&*self.time2.buffer),
-            _ => None,
-        };
-
-        if let Some(time) = time {
-            buf.copy_from_slice(time)
-        }
-        
-        time.is_some()
+    pub fn time(&self, buf: &mut [u8]) {
+        buf.copy_from_slice(&*self.time)
     }
 
     #[wasm_bindgen]
-    pub fn frequency(&self, buf: &mut [f32]) {
-        buf.copy_from_slice(&self.frequency)
+    pub fn frequency(&self, buf: &mut [u8]) {
+        buf.copy_from_slice(&*self.frequency)
+    }
+
+    fn blackman(r: f32) -> f32 {
+        let a = 0.16f32;
+        let (a0, a1, a2) = ((1f32 - a) / 2f32, 0.5f32, a / 2f32);
+        let c = (PI * 2f32 * r).cos();
+        a0 + a1 * c + a2 * (2f32 * c * c - 1f32)
     }
 }

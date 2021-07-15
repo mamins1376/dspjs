@@ -35,15 +35,20 @@ class CustomWorklet extends AudioWorkletProcessor {
 
   process([input,]: Float32Array[][]) {
     if (this.options && input.length) {
-      const size = this.options.fftSize;
-      this.analyzer ??= new Analyzer(size);
+      const {
+        fftSize: size,
+        minDecibels: min,
+        maxDecibels: max,
+        smoothingTimeConstant: smooth,
+      } = this.options;
+      this.analyzer ??= new Analyzer(size, min, max, smooth);
 
       if (this.analyzer.feed(input[0])) {
-        let buffer = new Float32Array(size);
+        let buffer = new Uint8Array(size);
         this.analyzer.time(buffer);
         this.port.postMessage(Time.make(buffer), [buffer.buffer]);
 
-        buffer = new Float32Array(size >> 1);
+        buffer = new Uint8Array(size >> 1);
         this.analyzer.frequency(buffer);
         this.port.postMessage(Frequency.make(buffer), [buffer.buffer]);
       }

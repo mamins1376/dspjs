@@ -134,7 +134,7 @@ export default class Audio {
 }
 
 interface GetData {
-  (buffer: Float32Array): void;
+  (buffer: Uint8Array): void;
 }
 
 class Visualizer {
@@ -172,19 +172,19 @@ class Visualizer {
     this.draw_handle = requestAnimationFrame(this.draw.bind(this));
 
     const [waveform, spectrum, spectrogram] = this.drawers;
-    waveform.draw(time, this.analyser.getFloatTimeDomainData.bind(this.analyser));
-    spectrum.draw(time, this.analyser.getFloatFrequencyData.bind(this.analyser));
-    spectrogram.draw(time, this.analyser.getFloatFrequencyData.bind(this.analyser));
+    waveform.draw(time, this.analyser.getByteTimeDomainData.bind(this.analyser));
+    spectrum.draw(time, this.analyser.getByteFrequencyData.bind(this.analyser));
+    spectrogram.draw(time, this.analyser.getByteFrequencyData.bind(this.analyser));
   }
 }
 
 class Waveform {
-  private buffer: Float32Array;
+  private buffer: Uint8Array;
   private context!: CanvasRenderingContext2D;
 
   constructor(canvas: HTMLCanvasElement, length: number) {
     this.recanvas(canvas);
-    this.buffer = new Float32Array(length);
+    this.buffer = new Uint8Array(length);
   }
 
   recanvas(canvas?: HTMLCanvasElement) {
@@ -217,7 +217,7 @@ class Waveform {
 
     for (const [i, v] of this.buffer.entries()) {
       const x = i * width * 1.0 / this.buffer.length;
-      const y = v * height;
+      const y = v * height / 255.0;
       i ? context.lineTo(x, y) : context.moveTo(x, y);
     }
 
@@ -227,12 +227,12 @@ class Waveform {
 }
 
 class Spectrum {
-  private buffer: Float32Array;
+  private buffer: Uint8Array;
   private context!: CanvasRenderingContext2D;
 
   constructor(canvas: HTMLCanvasElement, length: number) {
     this.recanvas(canvas);
-    this.buffer = new Float32Array(length);
+    this.buffer = new Uint8Array(length);
   }
 
   recanvas(canvas?: HTMLCanvasElement) {
@@ -268,7 +268,7 @@ class Spectrum {
     entries.next();
     for (const [i, v] of entries) {
       const x = Math.log10(i) * x_scale;
-      const y = (1 - v) * height;
+      const y = (1 - v / 255.0) * height;
       i ? context.lineTo(x, y) : context.moveTo(x, y);
     }
 
@@ -278,12 +278,12 @@ class Spectrum {
 }
 
 class Spectrogram {
-  private buffer: Float32Array;
+  private buffer: Uint8Array;
   private data?: ImageData;
   private context!: CanvasRenderingContext2D;
 
   constructor(canvas: HTMLCanvasElement, length: number) {
-    this.buffer = new Float32Array(length);
+    this.buffer = new Uint8Array(length);
     this.recanvas(canvas);
   }
 
@@ -330,7 +330,7 @@ class Spectrogram {
       const v = Spectrogram.interpolate(this.buffer, f);
       f *= a;
 
-      const j = i << 2, l = v, h = (0 + l) / 5;
+      const j = i << 2, l = v / 255.0, h = (0 + l) / 5;
       const q = l < 0.5 ? l * 2 : 1, p = 2 * l - q;
       data[j  ] = 255 * Spectrogram.hue2rgb(p, q, h + 1 / 3);
       data[j+1] = 255 * Spectrogram.hue2rgb(p, q, h);
@@ -340,7 +340,7 @@ class Spectrogram {
     this.context.putImageData(this.data, 0, 0);
   }
 
-  private static interpolate(b: Float32Array, x: number): number {
+  private static interpolate(b: Uint8Array, x: number): number {
     const h = Math.ceil(x), l = h - 1, d = x - l;
     const H = b[h], L = b[l];
     return L + (H - L) * d;
@@ -426,10 +426,6 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
     this.minDecibels = options?.minDecibels ?? -100;
     this.smoothingTimeConstant = options?.smoothingTimeConstant ?? 0.8;
 
-    this.floats = Array(2) as Tuple<Float32Array, 2>;
-    this.floats[0] = new Float32Array(this.len);
-    this.floats[1] = new Float32Array(this.len);
-
     this.bytes = Array(2) as Tuple<Uint8Array, 2>;
     this.bytes[0] = new Uint8Array(this.len);
     this.bytes[1] = new Uint8Array(this.len);
@@ -454,33 +450,26 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
       this.setBuffer(Frequency.check(data), data.buffer);
   }
 
-  private setBuffer(isFrequency: boolean, buffer: Float32Array) {
+  private setBuffer(isFrequency: boolean, buffer: Uint8Array) {
     const [s, l] = [this.fftSize >> +isFrequency, buffer.length];
     if (l !== s) {
       const type = isFrequency ? "frequency" : "time";
       throw new TypeError(`${type} buffer size mismatch: ${l} (must be ${s})`)
     }
-    this.floats[+isFrequency] = buffer;
+    this.bytes[+isFrequency] = buffer;
   }
 
-  private floats: Tuple<Float32Array, 2>;
   private bytes: Tuple<Uint8Array, 2>;
 
-  getFloatTimeDomainData(array: Float32Array) {
-    array.set(this.floats[0].slice(0, array.length));
-  }
+  getFloatTimeDomainData(_array: Float32Array) {}
 
-  getFloatFrequencyData(array: Float32Array) {
-    array.set(this.floats[1].slice(0, array.length));
-  }
+  getFloatFrequencyData(_array: Float32Array) {}
 
   getByteTimeDomainData(array: Uint8Array) {
-    //array.set(this.bytes[0]);
-    throw new TypeError("unimplemented");
+    array.set(this.bytes[0].slice(0, array.length));
   }
 
   getByteFrequencyData(array: Uint8Array) {
-    //array.set(this.bytes[1]);
-    throw new TypeError("unimplemented");
+    array.set(this.bytes[1].slice(0, array.length));
   }
 }
