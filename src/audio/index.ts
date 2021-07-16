@@ -393,7 +393,7 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
     const url = new URL("wasm.wasm", window.location.href);
     const module = await (await fetch(url.href)).arrayBuffer();
 
-    me.port.postMessage(Module.make(module, me.options()));
+    me.port.postMessage(Module.make(module, me.options()), [module]);
 
     while (true) {
       const { data } = await me.getMessage();
