@@ -1,6 +1,6 @@
 import "./shim";
 
-import { Tuple, Ready, isMessageData, Module, workletId, Time, Frequency, Windowing, Options } from "./message";
+import { Tuple, Ready, isMessageData, Module, workletId, Time, Frequency, Windowing, Options } from "../types";
 
 export const enum State {
   Closed = 0,

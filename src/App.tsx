@@ -1,7 +1,7 @@
 /// <reference path="./highlight.d.ts" />
 
 import Audio, { Canvases, numCanvases, State } from "./audio";
-import { Tuple, Options } from "./audio/message";
+import { Tuple, Options } from "./types";
 
 import {
   useRef,

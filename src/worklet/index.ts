@@ -2,7 +2,7 @@
 
 import "./decoder";
 
-import { Frequency, isMessageData, Module, Ready, Time, Tuple, workletId } from "../audio/message";
+import { Frequency, isMessageData, Module, Ready, Time, Tuple, workletId } from "../types";
 
 import initialize, { Analyzer } from "../../target/wasm-pack/wasm";
 
