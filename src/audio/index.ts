@@ -407,6 +407,8 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
       break;
     }
 
+    me.port.addEventListener("message", me.message.bind(me));
+
     return me;
   }
 
@@ -431,8 +433,6 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
     this.bytes = Array(2) as Tuple<Uint8Array, 2>;
     this.bytes[0] = new Uint8Array(this.len);
     this.bytes[1] = new Uint8Array(this.len);
-
-    this.port.addEventListener("message", ev => this.message(ev));
   }
 
   private options(): Module.Options {

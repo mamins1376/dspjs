@@ -259,7 +259,7 @@ export default [{
       }],
       copyOnce: true,
     }),
-    livereload({ dir }),
+    livereload({ dir, port: 30000 }),
   ],
   watch: { clearScreen: false },
 }, {

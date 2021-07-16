@@ -54,7 +54,7 @@ class CustomWorklet extends AudioWorkletProcessor {
       }
     }
 
-    return input.length !== 0;
+    return !!this.analyzer;
   }
 }
 

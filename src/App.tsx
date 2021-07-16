@@ -94,7 +94,7 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
       </div>
     </div>
   );
-}
+};
 
 const Indicator = ({ pending, running, errored }: Record<string, boolean>) => {
   const [label, color] = [

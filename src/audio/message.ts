@@ -1,7 +1,7 @@
 export namespace Ready {
-  export type Message = ReturnType<typeof make>;
+  export type Message = { type: typeof type, error?: string };
   export const type = "ready";
-  export const make = (error?: string) => ({ type, error });
+  export const make = (error?: string): Message => (error ? { type, error } : { type });
   export const check = (message: any): message is Message => message?.type === type;
 }
 
