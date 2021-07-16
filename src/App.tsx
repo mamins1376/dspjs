@@ -12,7 +12,7 @@ import {
 
 import { h, RefObject } from "preact";
 
-import AudioHighlight, { start, end } from "highlight:./wasm/lib:40,50";
+import AudioHighlight, { start, end, file } from "highlight:./wasm/lib:40,50";
 
 export default () => (
   <div class="frame">
@@ -29,8 +29,8 @@ export default () => (
   </div>
 );
 
-const pwd = "https://github.com/mamins1376/dspjs/blob/default/src";
-const code_href = `${pwd}/audio.ts#L${start}-L${end}`;
+const pwd = "https://github.com/mamins1376/wasm-fft/blob/default/src";
+const code_href = `${pwd}/${file}#L${start}-L${end}`;
 
 const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   const [refs, setHidden, graphs] = useGraphs();

@@ -1,14 +1,14 @@
 {
-  "name": "dspjs",
+  "name": "wasm-fft",
   "version": "0.1.0",
-  "description": "real-time voice stretch using web audio api",
-  "main": "src/index.ts",
+  "description": "real-time audio analyzer using web audio api",
+  "main": "src/main.ts",
   "scripts": {
     "start": "rollup -c -w"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mamins1376/dspjs.git"
+    "url": "git+https://github.com/mamins1376/wasm-fft.git"
   },
   "keywords": [
     "dsp",
@@ -20,9 +20,9 @@
   "author": "Mohammad Amin Sameti <mamins1376@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/mamins1376/dspjs/issues"
+    "url": "https://github.com/mamins1376/wasm-fft/issues"
   },
-  "homepage": "https://mamins1376.github.io/dspjs",
+  "homepage": "https://mamins1376.github.io/wasm-fft",
   "dependencies": {
     "@openfonts/fira-mono_latin": "^1.44.2",
     "@rollup/plugin-alias": "^3.1.2",

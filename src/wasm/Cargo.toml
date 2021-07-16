@@ -3,8 +3,8 @@ name = "wasm"
 version = "0.1.0"
 authors = ["Mohammad Amin Sameti <mamins1376@gmail.com>"]
 edition = "2018"
-description = "processor module of dspjs"
-repository = "https://github.com/mamins1376/dspjs"
+description = "wasm module of wasm-fft"
+repository = "https://github.com/mamins1376/wasm-fft"
 license = "MIT"
 
 [lib]
