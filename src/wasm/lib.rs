@@ -42,6 +42,24 @@ impl Buffer {
     }
 }
 
+struct Smoother {
+    buffer: Box<[f32]>,
+    factor: f32,
+}
+
+impl Smoother {
+    fn new(factor: f32, size: usize) -> Self {
+        let buffer = vec![0f32.into(); size].into();
+        Self { buffer, factor }
+    }
+
+    fn smooth(&mut self, i: usize, v: f32) -> f32 {
+        self.buffer[i] = self.buffer[i] * self.factor
+            + (1f32 - self.factor) * v;
+        self.buffer[i]
+    }
+}
+
 #[wasm_bindgen]
 pub struct Analyzer {
     fft: Radix4<f32>,
@@ -51,6 +69,8 @@ pub struct Analyzer {
 
     input: Buffer,
 
+    smoother: Smoother,
+
     time: Box<[u8]>,
     frequency: Box<[u8]>,
     dbs: (f32, f32),
@@ -59,7 +79,7 @@ pub struct Analyzer {
 #[wasm_bindgen]
 impl Analyzer {
     #[wasm_bindgen(constructor)]
-    pub fn new(size: usize, min: f32, max: f32, _smooth: f32) -> Analyzer {
+    pub fn new(size: usize, min: f32, max: f32, smooth: f32) -> Analyzer {
 
         let fft = Radix4::new(size, FftDirection::Forward);
         let buffer = vec![0f32.into(); size].into();
@@ -69,12 +89,14 @@ impl Analyzer {
 
         let input = Buffer::new(size);
 
+        let smoother = Smoother::new(smooth, size);
+
         let time = vec![0; size].into();
         let frequency = vec![0; size >> 1].into();
 
         let dbs = (min, max);
 
-        Analyzer { fft, scratch, buffer, input, time, frequency, dbs }
+        Analyzer { fft, scratch, buffer, input, time, smoother, frequency, dbs }
     }
 
     #[wasm_bindgen]
@@ -100,11 +122,15 @@ impl Analyzer {
 
         let (l, h) = self.dbs;
         let scale = 255f32 / (h - l);
+        let sm = &mut self.smoother;
         self.buffer.iter()
-            .map(|c| (c.norm() / len).log10() * 20f32)
-            .map(|c| scale * (c - l))
+            .map(|c| c.norm() / len)
+            .enumerate()
+            .map(|(i, v)| sm.smooth(i, v))
+            .map(|v| v.log10() * 20f32)
+            .map(|v| scale * (v - l))
             .zip(self.frequency.iter_mut())
-            .for_each(|(s, d)| *d = s as u8);
+            .for_each(|(v, d)| *d = v as u8);
 
         self.input.empty();
 

@@ -61,7 +61,9 @@ export default class Audio {
 
     this.source ??= this.context.createMediaStreamSource(this.stream);
 
-    this.analyser ??= await WorkletAnalyzerNode.make(this.context, { fftSize });
+    this.analyser ??= await WorkletAnalyzerNode.make(this.context, {
+      fftSize, smoothingTimeConstant: 0.3,
+    });
 
     this.muter = this.context.createGain();
     this.muter.gain.value = 0;
