@@ -29,7 +29,6 @@ export default class Audio {
   private source?: MediaStreamAudioSourceNode;
   private analyser?: WorkletAnalyzerNode;
   private visualyser?: Visualizer;
-  private muter?: GainNode;
 
   get state() {
     return this.is_started ? State.Running :
@@ -65,9 +64,6 @@ export default class Audio {
       fftSize, smoothingTimeConstant: 0.3,
     });
 
-    this.muter = this.context.createGain();
-    this.muter.gain.value = 0;
-
     this.visualyser ??= new Visualizer(this.analyser, canvases);
 
     this.is_open = true;
@@ -81,8 +77,7 @@ export default class Audio {
       this.is_started = true;
 
       this.source!.connect(this.analyser!);
-      this.analyser!.connect(this.muter!);
-      this.muter!.connect(this.context!.destination);
+      this.analyser!.connect(this.context!.destination);
 
       this.visualyser!.start();
     }
@@ -97,7 +92,6 @@ export default class Audio {
 
       this.source!.disconnect();
       this.analyser!.disconnect();
-      this.muter!.disconnect();
 
       this.visualyser!.stop();
     }
@@ -120,8 +114,6 @@ export default class Audio {
 
     this.visualyser?.recanvas();
     delete this.visualyser;
-
-    delete this.muter;
 
     if (this.context)
       await this.context.close();

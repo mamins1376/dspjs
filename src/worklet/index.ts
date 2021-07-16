@@ -33,7 +33,7 @@ class CustomWorklet extends AudioWorkletProcessor {
     }
   }
 
-  process([input,]: Float32Array[][]) {
+  process([input]: Float32Array[][]) {
     if (this.options && input.length) {
       const {
         fftSize: size,
@@ -54,7 +54,7 @@ class CustomWorklet extends AudioWorkletProcessor {
       }
     }
 
-    return !!this.analyzer;
+    return true;
   }
 }
 
