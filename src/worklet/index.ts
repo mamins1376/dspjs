@@ -2,13 +2,13 @@
 
 import "./decoder";
 
-import { Frequency, isMessageData, Module, Ready, Change, Time, workletId } from "../audio/message";
+import { Frequency, isMessageData, Module, Ready, Time, Tuple, workletId } from "../audio/message";
 
 import initialize, { Analyzer } from "../../target/wasm-pack/wasm";
 
 class CustomWorklet extends AudioWorkletProcessor {
   analyzer?: Analyzer;
-  options?: Module.Options;
+  options?: Required<Module.Options>;
 
   constructor() {
     super();
@@ -27,28 +27,20 @@ class CustomWorklet extends AudioWorkletProcessor {
         .then(() => ready())
         .catch((reason: string) => ready(reason));
       this.options = data.options;
-    } else if (Change.check(data)) {
-      delete this.analyzer;
-      this.options = data.options;
     }
   }
 
   process([input]: Float32Array[][]) {
     if (this.options && input.length) {
-      const {
-        fftSize: size,
-        minDecibels: min,
-        maxDecibels: max,
-        smoothingTimeConstant: smooth,
-      } = this.options;
-      this.analyzer ??= new Analyzer(size, min, max, smooth);
+      const args = Module.optionsKeys.map(k => this.options![k]);
+      this.analyzer ??= new Analyzer(...args as Tuple<number, 5>);
 
       if (this.analyzer.feed(input[0])) {
-        let buffer = new Uint8Array(size);
+        let buffer = new Uint8Array(this.options.fftSize);
         this.analyzer.time(buffer);
         this.port.postMessage(Time.make(buffer), [buffer.buffer]);
 
-        buffer = new Uint8Array(size >> 1);
+        buffer = new Uint8Array(this.options.fftSize >> 1);
         this.analyzer.frequency(buffer);
         this.port.postMessage(Frequency.make(buffer), [buffer.buffer]);
       }

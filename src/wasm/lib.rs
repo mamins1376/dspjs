@@ -2,8 +2,6 @@
 
 extern crate alloc;
 
-use core::f32::consts::PI;
-
 use wee_alloc::WeeAlloc;
 use wasm_bindgen::prelude::*;
 use rustfft::{Fft, FftDirection, num_complex::Complex, algorithm::Radix4};
@@ -69,6 +67,8 @@ pub struct Analyzer {
 
     input: Buffer,
 
+    window: fn(f32) -> f32,
+
     smoother: Smoother,
 
     time: Box<[u8]>,
@@ -79,7 +79,7 @@ pub struct Analyzer {
 #[wasm_bindgen]
 impl Analyzer {
     #[wasm_bindgen(constructor)]
-    pub fn new(size: usize, min: f32, max: f32, smooth: f32) -> Analyzer {
+    pub fn new(size: usize, max: f32, min: f32, smooth: f32, window: u8) -> Analyzer {
 
         let fft = Radix4::new(size, FftDirection::Forward);
         let buffer = vec![0f32.into(); size].into();
@@ -89,6 +89,8 @@ impl Analyzer {
 
         let input = Buffer::new(size);
 
+        let window = window::get(window);
+
         let smoother = Smoother::new(smooth, size);
 
         let time = vec![0; size].into();
@@ -96,7 +98,7 @@ impl Analyzer {
 
         let dbs = (min, max);
 
-        Analyzer { fft, scratch, buffer, input, time, smoother, frequency, dbs }
+        Analyzer { fft, scratch, buffer, input, window, smoother, time, frequency, dbs }
     }
 
     #[wasm_bindgen]
@@ -111,10 +113,11 @@ impl Analyzer {
             .zip(&*self.input.buffer)
             .for_each(|(d, s)| *d = (128f32 * (1f32 + s)) as u8);
 
+        let window = self.window;
         let len = self.input.buffer.len() as f32;
         self.input.buffer.iter()
             .enumerate()
-            .map(|(n, &v)| v * Self::blackman((n as f32) / len))
+            .map(|(n, &v)| v * window((n as f32) / len))
             .zip(self.buffer.iter_mut())
             .for_each(|(s, d)| *d = s.into());
 
@@ -150,11 +153,41 @@ impl Analyzer {
     pub fn frequency(&self, buf: &mut [u8]) {
         buf.copy_from_slice(&*self.frequency)
     }
+}
+
+mod window {
+    use core::f32::consts::PI;
+
+    pub fn get(window: u8) -> fn(f32) -> f32 {
+        match window {
+            1 => bartlett,
+            2 => hanning,
+            3 => hamming,
+            4 => blackman,
+            _ => rectangular,
+        }
+    }
+
+    fn rectangular(_r: f32) -> f32 {
+        1f32
+    }
+
+    fn bartlett(r: f32) -> f32 {
+        let r = r * 2f32;
+        if r > 1f32 { r } else { 2f32 - r }
+    }
+
+    fn hanning(r: f32) -> f32 {
+        let c = (PI * 2f32 * r).cos();
+        0.5f32 - 0.5f32 * c
+    }
+    fn hamming(r: f32) -> f32 {
+        let c = (PI * 2f32 * r).cos();
+        0.54f32 - 0.46f32 * c
+    }
 
     fn blackman(r: f32) -> f32 {
-        let a = 0.16f32;
-        let (a0, a1, a2) = ((1f32 - a) / 2f32, 0.5f32, a / 2f32);
         let c = (PI * 2f32 * r).cos();
-        a0 + a1 * c + a2 * (2f32 * c * c - 1f32)
+        0.42f32 + 0.5f32 * c + 0.08f32 * (2f32 * c * c - 1f32)
     }
 }

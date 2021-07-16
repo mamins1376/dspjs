@@ -1,6 +1,6 @@
 import "./shim";
 
-import { Ready, isMessageData, Module, workletId, Change, Time, Frequency } from "./message";
+import { Tuple, Ready, isMessageData, Module, workletId, Time, Frequency, Windowing, Options } from "./message";
 
 export const enum State {
   Closed = 0,
@@ -13,9 +13,6 @@ enum AudioError {
   Insecure = "مطمئن شوید این صفحه با پروتکل امن http<strong>s</strong>) بارگزاری شده است.",
   Unsupported = "متأسفانه مروگر شما پشتیبانی نمی‌شود. لطفاً از فایرفاکس ۷۶ یا جدیدتر، و یا کروم ۶۵ یا جدیدتر استفاده کنید.",
 }
-
-type _TupleOf<T, N extends number, R extends unknown[]> = R["length"] extends N ? R : _TupleOf<T, N, [T, ...R]>;
-export type Tuple<T, N extends number> = N extends N ? number extends N ? T[] : _TupleOf<T, N, []> : never;
 
 export const numCanvases = 3;
 export type Canvases = Tuple<HTMLCanvasElement, typeof numCanvases>;
@@ -35,7 +32,7 @@ export default class Audio {
       this.is_open ? State.Open : State.Closed;
   }
 
-  async open(canvases: Canvases, fftSize: number) {
+  async open(canvases: Canvases, options?: Options) {
     if (this.is_open)
       return;
 
@@ -60,9 +57,7 @@ export default class Audio {
 
     this.source ??= this.context.createMediaStreamSource(this.stream);
 
-    this.analyser ??= await WorkletAnalyzerNode.make(this.context, {
-      fftSize, smoothingTimeConstant: 0.3,
-    });
+    this.analyser ??= await WorkletAnalyzerNode.make(this.context, options);
 
     this.visualyser ??= new Visualizer(this.analyser, canvases);
 
@@ -349,31 +344,18 @@ class Spectrogram {
   }
 }
 
-class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
-  private len: number;
-
-  get fftSize() {
-    return this.len;
-  }
-
-  set fftSize(len: number) {
-    //if ((len & (len - 1)) !== 0)
-    //  throw new TypeError(`fftSize must be a power of 2: ${len}`);
-    //if (len < 32 || len > 32768)
-    //  throw new TypeError(`fftSize must be in range: ${len}`);
-    this.len = len;
-    this.port.postMessage(Change.make(this.options()));
-  }
+class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode, Required<Options> {
+  readonly fftSize: number;
+  readonly maxDecibels: number;
+  readonly minDecibels: number;
+  readonly smoothingTimeConstant: number;
+  readonly windowing: Windowing;
 
   get frequencyBinCount() {
-    return this.len >> 1;
+    return this.fftSize >> 1;
   }
 
-  maxDecibels: number;
-  minDecibels: number;
-  smoothingTimeConstant: number;
-
-  static async make(context: AudioContext, options?: AnalyserOptions): Promise<WorkletAnalyzerNode> {
+  static async make(context: AudioContext, options?: Options): Promise<WorkletAnalyzerNode> {
     if (!context.audioWorklet)
       throw new TypeError("AudioWorklet API is not supported on this browser");
 
@@ -415,25 +397,25 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode {
     return result;
   }
 
-  constructor(context: AudioContext, options?: AnalyserOptions) {
-    super(context, workletId, options);
-    this.len = options?.fftSize ?? 2048;
+  constructor(context: AudioContext, options?: Options) {
+    super(context, workletId);
+
+    this.fftSize = options?.fftSize ?? 2048;
     this.maxDecibels = options?.maxDecibels ?? -30;
     this.minDecibels = options?.minDecibels ?? -100;
     this.smoothingTimeConstant = options?.smoothingTimeConstant ?? 0.8;
+    this.windowing = options?.windowing ?? Windowing.Blackman;
 
     this.bytes = Array(2) as Tuple<Uint8Array, 2>;
-    this.bytes[0] = new Uint8Array(this.len);
-    this.bytes[1] = new Uint8Array(this.len);
+    this.bytes[0] = new Uint8Array(this.fftSize);
+    this.bytes[1] = new Uint8Array(this.fftSize);
   }
 
-  private options(): Module.Options {
-    return {
-      fftSize: this.len,
-      maxDecibels: this.maxDecibels,
-      minDecibels: this.minDecibels,
-      smoothingTimeConstant: this.smoothingTimeConstant,
-    }
+  private options(): Required<Options> {
+    const options = {} as Required<Options>;
+    for (const key of Module.optionsKeys)
+      options[key] = this[key];
+    return options;
   }
 
   private message({ data }: MessageEvent) {

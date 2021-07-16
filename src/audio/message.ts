@@ -1,3 +1,6 @@
+type _TupleOf<T, N extends number, R extends unknown[]> = R["length"] extends N ? R : _TupleOf<T, N, [T, ...R]>;
+export type Tuple<T, N extends number> = N extends N ? number extends N ? T[] : _TupleOf<T, N, []> : never;
+
 export namespace Ready {
   export type Message = { type: typeof type, error?: string };
   export const type = "ready";
@@ -6,19 +9,32 @@ export namespace Ready {
 }
 
 export namespace Module {
-  export type Options = Required<Omit<AnalyserOptions, keyof AudioNodeOptions>>;
+  export enum Windowing {
+    Rectangular = 0, 
+    Bartlett = 1, 
+    Hanning = 2, 
+    Hamming = 3, 
+    Blackman = 4, 
+  }
+
+  export type Options = Omit<AnalyserOptions, keyof AudioNodeOptions> & {
+    windowing?: Windowing;
+  };
+
+  export const optionsKeys: (keyof Required<Options>)[] = [
+    "fftSize", "maxDecibels", "minDecibels", "smoothingTimeConstant", "windowing",
+  ];
+
   export type Message = ReturnType<typeof make>;
   export const type = "module";
-  export const make = (module: ArrayBuffer, options: Options) => ({ type, module, options });
+  export const make = (module: ArrayBuffer, options: Required<Options>) => ({ type, module, options });
   export const check = (message: any): message is Message => message?.type === type;
 }
 
-export namespace Change {
-  export type Message = ReturnType<typeof make>;
-  export const type = "resize";
-  export const make = (options: Module.Options) => ({ type, options });
-  export const check = (message: any): message is Message => message?.type === type;
-}
+export type Options = Module.Options;
+
+export type Windowing = Module.Windowing;
+export const Windowing = Module.Windowing;
 
 export namespace Time {
   export type Message = ReturnType<typeof make>;

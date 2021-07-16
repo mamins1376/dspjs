@@ -1,6 +1,7 @@
 /// <reference path="./highlight.d.ts" />
 
-import Audio, { Canvases, numCanvases, State, Tuple } from "./audio";
+import Audio, { Canvases, numCanvases, State } from "./audio";
+import { Tuple, Options } from "./audio/message";
 
 import {
   useRef,
@@ -12,7 +13,7 @@ import {
 
 import { h, RefObject } from "preact";
 
-import AudioHighlight, { start, end, file } from "highlight:./wasm/lib:40,50";
+import AudioHighlight, { start, end, file } from "highlight:./wasm/lib:110,133";
 
 export default () => (
   <div class="frame">
@@ -30,12 +31,13 @@ export default () => (
 );
 
 const pwd = "https://github.com/mamins1376/wasm-fft/blob/default/src";
-const code_href = `${pwd}/${file}#L${start}-L${end}`;
+const rel_file = file.substring(file.lastIndexOf("/src/") + 5);
+const code_href = `${pwd}/${rel_file}#L${start}-L${end}`;
 
 const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   const [refs, setHidden, graphs] = useGraphs();
   const canvases = () => refs.map(c => c.current).filter(c => c) as Canvases;
-  const { state, pending, running, close, run, stop, recanvas, resize } = useAudio(canvases);
+  const { state, pending, running, close, run, stop, recanvas, restart } = useAudio(canvases);
   const [fftSize, FFTSize] = useFFTSize();
 
   const [b1c, b1l, b2c, b2l] = {
@@ -56,7 +58,7 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
     return () => window.removeEventListener("resize", handler);
   }, canvases());
 
-  useEffect(() => void (state !== State.Closed && resize(fftSize)), [fftSize]);
+  useEffect(() => void (state !== State.Closed && restart({ fftSize })), [fftSize]);
 
   return (
     <div class="window">
@@ -70,17 +72,13 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
         <ErrorView />
 
         <p>
-          در حال حاضر، این برنامه به صدای شما افکت Feedback Delay را اضافه می‌کند.
-          برای شروع، ‌به یک میکروفون نیاز دارید.
-        </p>
-
-        <p><strong>توجه!</strong> مطمئن
-          شوید مسیر مستقیمی برای صدا بین بلندگو و میکروفون شما برقرار نیست.
-          در غیر این صورت ممکن است با صدای سوت بلندی مواجه شوید.
+          با زدن بر روی دکمه‌ی شروع، ‌صدای شما از میکروفون گرفته شده و تحلیل فوریه آن
+          نمایش داده می‌شود. می‌توانید پارامترهای مختلف تبدیل اعم از اندازه‌ی بافر
+          تبدیل فوریه، ضرایب تابع پنجره و موارد دیگری را تغییر دهید.
         </p>
 
         <div class="buttons">
-          <button class={b1c} onClick={_ => b1p(fftSize)} disabled={errored}>{b1l}</button>
+          <button class={b1c} onClick={_ => b1p({ fftSize })} disabled={errored}>{b1l}</button>
           {b2l && !errored && <button class={b2c} onClick={close} >{b2l}</button>}
           { FFTSize }
         </div>
@@ -165,18 +163,18 @@ const useAudio = (canvases: () => Canvases) => {
   const opened = state !== State.Closed;
   const running = state === State.Running;
 
-  const open_inner = (s: number) => audio.open(canvases(), s);
+  const open_inner = (o?: Options) => audio.open(canvases(), o);
 
   return {
     state, pending, opened, running,
-    open: wrap((s: number) => !running && open_inner(s)),
+    open: wrap((o?: Options) => !running && open_inner(o)),
     close: wrap(() => audio.close()),
-    run: wrap(async (s: number) => { await open_inner(s); audio.start(); }),
+    run: wrap(async (o?: Options) => { await open_inner(o); audio.start(); }),
     stop: wrap(() => audio.stop()),
     recanvas: audio.recanvas.bind(audio),
-    resize: wrap(async (s: number) => {
+    restart: wrap(async (o?: Options) => {
       await audio.close();
-      await audio.open(canvases(), s);
+      await open_inner(o);
       if (running)
         audio.start();
     }),
