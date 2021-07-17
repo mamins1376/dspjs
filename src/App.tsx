@@ -38,7 +38,7 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   const [refs, setHidden, graphs] = useGraphs();
   const canvases = () => refs.map(c => c.current).filter(c => c) as Canvases;
   const { state, pending, running, close, run, stop, recanvas, restart } = useAudio(canvases);
-  const [fftSize, FFTSize] = useFFTSize();
+  const [fftSize, setFftSize] = useState(1024);
 
   const [b1c, b1l, b2c, b2l] = {
     [State.Closed]: ["start", "شروع"],
@@ -80,7 +80,7 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
         <div class="buttons">
           <button class={b1c} onClick={_ => b1p({ fftSize })} disabled={errored}>{b1l}</button>
           {b2l && !errored && <button class={b2c} onClick={close} >{b2l}</button>}
-          { FFTSize }
+          <PowerSelector value={fftSize} onChange={setFftSize} />
         </div>
 
         { graphs }
@@ -101,19 +101,20 @@ const Indicator = ({ pending, running, errored }: Record<string, boolean>) => {
   return <span style={`background-color: var(--color-${color});`}>{label}</span>;
 };
 
-const useFFTSize = (): [number, h.JSX.Element] => {
-  const [power, setPower] = useState(10);
-  const size = 1 << power;
-  return [size, (
+type PowerSelectorProps = {
+  value: number,
+  onChange: (value: number) => void,
+};
+
+const PowerSelector = ({ value, onChange }: PowerSelectorProps) => (
     <div class="fft-size">
-      <span>اندازه فوریه: { size } نقطه</span>
+      <span>اندازه فوریه: { value } نقطه</span>
       <span>
-        <button onClick={() => setPower(power + 1)} disabled={power >= 15}>▲</button>
-        <button onClick={() => setPower(power - 1)} disabled={power <= 5}>▼</button>
+        <button onClick={() => onChange(value << 1)} disabled={value >= 32768}>▲</button>
+        <button onClick={() => onChange(value >> 1)} disabled={value <= 32}>▼</button>
       </span>
     </div>
-  )];
-}
+);
 
 type CanvasRefs = Tuple<RefObject<HTMLCanvasElement>, typeof numCanvases>;
 
