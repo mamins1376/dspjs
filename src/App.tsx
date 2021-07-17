@@ -13,7 +13,7 @@ import {
 
 import { h, RefObject } from "preact";
 
-import AudioHighlight, { start, end, file } from "highlight:./wasm/lib:110,133";
+import AudioHighlight, { start, end, file } from "highlight:./wasm/lib:117,141";
 
 export default () => (
   <div class="frame">
@@ -94,7 +94,7 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
 
         <p>
           حلقه اصلی پردازش در <a href={code_href}>این قسمت</a> از کد است:
-          <AudioHighlight class="language-typescript" />
+          <AudioHighlight class="language-rust" />
         </p>
       </div>
     </div>
