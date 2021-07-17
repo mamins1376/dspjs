@@ -1,7 +1,7 @@
 /// <reference path="./highlight.d.ts" />
 
 import Audio, { Canvases, numCanvases, State } from "./audio";
-import { Tuple, Options } from "./types";
+import { Tuple, Options, Windowing } from "./types";
 
 import {
   useRef,
@@ -40,6 +40,8 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   const { state, pending, running, close, run, stop, recanvas, restart } = useAudio(canvases);
   const [fftSize, setFftSize] = useState(1024);
 
+  const [windowing, setWindowing] = useState(Windowing.Default);
+
   const [b1c, b1l, b2c, b2l] = {
     [State.Closed]: ["start", "شروع"],
     [State.Open]: ["panic", "ادامه", "stop", "بستن"],
@@ -58,7 +60,7 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
     return () => window.removeEventListener("resize", handler);
   }, canvases());
 
-  useEffect(() => void (state !== State.Closed && restart({ fftSize })), [fftSize]);
+  useEffect(() => void (state !== State.Closed && restart({ fftSize, windowing })), [fftSize, windowing]);
 
   return (
     <div class="window">
@@ -78,9 +80,13 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
         </p>
 
         <div class="buttons">
-          <button class={b1c} onClick={_ => b1p({ fftSize })} disabled={errored}>{b1l}</button>
-          {b2l && !errored && <button class={b2c} onClick={close} >{b2l}</button>}
+          <button class={b1c} onClick={_ => b1p({ fftSize, windowing })} disabled={errored}>{b1l}</button>
+          {b2l && !errored && <button class={b2c} onClick={close}>{b2l}</button>}
           <PowerSelector value={fftSize} onChange={setFftSize} />
+
+          <select value={windowing} onChange={(e: any) => setWindowing(e.target.value as Windowing.Key)}>
+            { Object.keys(Windowing.Enum).map(k => <option value={k}>{k}</option>) }
+          </select>
         </div>
 
         { graphs }

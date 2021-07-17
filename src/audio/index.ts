@@ -349,7 +349,7 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode, Requ
   readonly maxDecibels: number;
   readonly minDecibels: number;
   readonly smoothingTimeConstant: number;
-  readonly windowing: Windowing;
+  readonly windowing: Windowing.Key;
 
   get frequencyBinCount() {
     return this.fftSize >> 1;
@@ -404,7 +404,7 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode, Requ
     this.maxDecibels = options?.maxDecibels ?? -30;
     this.minDecibels = options?.minDecibels ?? -100;
     this.smoothingTimeConstant = options?.smoothingTimeConstant ?? 0.8;
-    this.windowing = options?.windowing ?? Windowing.Blackman;
+    this.windowing = options?.windowing ?? Windowing.Default;
 
     this.bytes = Array(2) as Tuple<Uint8Array, 2>;
     this.bytes[0] = new Uint8Array(this.fftSize);
@@ -414,7 +414,7 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode, Requ
   private options(): Required<Options> {
     const options = {} as Required<Options>;
     for (const key of Module.optionsKeys)
-      options[key] = this[key];
+      options[key] = this[key] as never;
     return options;
   }
 

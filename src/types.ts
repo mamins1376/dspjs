@@ -8,17 +8,23 @@ export namespace Ready {
   export const check = (message: any): message is Message => message?.type === type;
 }
 
-export namespace Module {
-  export enum Windowing {
-    Rectangular = 0, 
-    Bartlett = 1, 
-    Hanning = 2, 
-    Hamming = 3, 
-    Blackman = 4, 
-  }
+export namespace Windowing {
+  export const Enum = {
+    Rectangular: 0, 
+    Bartlett: 1, 
+    Hanning: 2, 
+    Hamming: 3, 
+    Blackman: 4, 
+  } as const;
+  
+  export type Key = keyof typeof Enum;
+  export type Value = typeof Enum[Key];
+  export const Default: Key = "Blackman";
+}
 
+export namespace Module {
   export type Options = Omit<AnalyserOptions, keyof AudioNodeOptions> & {
-    windowing?: Windowing;
+    windowing?: Windowing.Key;
   };
 
   export const optionsKeys: (keyof Required<Options>)[] = [
@@ -32,9 +38,6 @@ export namespace Module {
 }
 
 export type Options = Module.Options;
-
-export type Windowing = Module.Windowing;
-export const Windowing = Module.Windowing;
 
 export namespace Time {
   export type Message = ReturnType<typeof make>;

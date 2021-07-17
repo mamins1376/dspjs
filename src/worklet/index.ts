@@ -2,7 +2,7 @@
 
 import "./decoder";
 
-import { Frequency, isMessageData, Module, Ready, Time, Tuple, workletId } from "../types";
+import { Frequency, isMessageData, Module, Ready, Time, Windowing, workletId } from "../types";
 
 import initialize, { Analyzer } from "../../target/wasm-pack/wasm";
 
@@ -32,8 +32,13 @@ class CustomWorklet extends AudioWorkletProcessor {
 
   process([input]: Float32Array[][]) {
     if (this.options && input.length) {
-      const args = Module.optionsKeys.map(k => this.options![k]);
-      this.analyzer ??= new Analyzer(...args as Tuple<number, 5>);
+      this.analyzer ??= new Analyzer(
+        this.options.fftSize,
+        this.options.maxDecibels,
+        this.options.minDecibels,
+        this.options.smoothingTimeConstant,
+        Windowing.Enum[this.options.windowing],
+      );
 
       if (this.analyzer.feed(input[0])) {
         let buffer = new Uint8Array(this.options.fftSize);
