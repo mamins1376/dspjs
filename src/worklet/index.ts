@@ -28,6 +28,9 @@ class CustomWorklet extends AudioWorkletProcessor {
         .catch((reason: string) => ready(reason));
       this.options = data.options;
     }
+
+    if (Windowing.check(data) && this.analyzer)
+      this.analyzer.change_windowing(Windowing.Enum[data.windowing]);
   }
 
   process([input]: Float32Array[][]) {

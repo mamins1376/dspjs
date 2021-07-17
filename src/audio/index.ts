@@ -120,6 +120,13 @@ export default class Audio {
   recanvas(canvases?: Canvases) {
     this.visualyser?.recanvas(canvases);
   }
+
+  rewindow(windowing: Windowing.Key) {
+    if (!this.is_started)
+      throw AudioError.NotStarted;
+
+    this.analyser!.port.postMessage(Windowing.make(windowing));
+  }
 }
 
 interface GetData {

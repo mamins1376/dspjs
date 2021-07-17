@@ -19,7 +19,12 @@ export namespace Windowing {
   
   export type Key = keyof typeof Enum;
   export type Value = typeof Enum[Key];
-  export const Default: Key = "Blackman";
+  export const Default: Key = "Hanning";
+
+  export type Message = ReturnType<typeof make>;
+  export const type = "windowing";
+  export const make = (windowing: Key) => ({ type, windowing });
+  export const check = (message: any): message is Message => message?.type === type;
 }
 
 export namespace Module {
@@ -55,6 +60,6 @@ export namespace Frequency {
 
 export type MessageData = Ready.Message | Module.Message | Time.Message | Frequency.Message;
 export const isMessageData = (data: any): data is MessageData =>
-  [Ready.check, Module.check, Time.check, Frequency.check].some(f => f(data));
+  [Ready.check, Module.check, Time.check, Frequency.check, Windowing.check].some(f => f(data));
 
 export const workletId = "custom-worklet";

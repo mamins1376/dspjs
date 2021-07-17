@@ -37,9 +37,8 @@ const code_href = `${pwd}/${rel_file}#L${start}-L${end}`;
 const Window = ({ errored, ErrorView }: ErrorViewPack) => {
   const [refs, setHidden, graphs] = useGraphs();
   const canvases = () => refs.map(c => c.current).filter(c => c) as Canvases;
-  const { state, pending, running, close, run, stop, recanvas, restart } = useAudio(canvases);
+  const { state, pending, running, close, run, stop, recanvas, restart, rewindow } = useAudio(canvases);
   const [fftSize, setFftSize] = useState(1024);
-
   const [windowing, setWindowing] = useState(Windowing.Default);
 
   const [b1c, b1l, b2c, b2l] = {
@@ -60,7 +59,9 @@ const Window = ({ errored, ErrorView }: ErrorViewPack) => {
     return () => window.removeEventListener("resize", handler);
   }, canvases());
 
-  useEffect(() => void (state !== State.Closed && restart({ fftSize, windowing })), [fftSize, windowing]);
+  useEffect(() => void (state !== State.Closed && restart({ fftSize, windowing })), [fftSize]);
+
+  useEffect(() => void (state !== State.Closed && rewindow(windowing)), [windowing]);
 
   return (
     <div class="window">
@@ -185,6 +186,7 @@ const useAudio = (canvases: () => Canvases) => {
       if (running)
         audio.start();
     }),
+    rewindow: audio.rewindow.bind(audio),
   };
 };
 

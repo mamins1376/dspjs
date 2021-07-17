@@ -67,7 +67,7 @@ pub struct Analyzer {
 
     input: Buffer,
 
-    window: fn(f32) -> f32,
+    windowing: fn(f32) -> f32,
 
     smoother: Smoother,
 
@@ -79,7 +79,7 @@ pub struct Analyzer {
 #[wasm_bindgen]
 impl Analyzer {
     #[wasm_bindgen(constructor)]
-    pub fn new(size: usize, max: f32, min: f32, smooth: f32, window: u8) -> Analyzer {
+    pub fn new(size: usize, max: f32, min: f32, smooth: f32, windowing: u8) -> Analyzer {
 
         let fft = Radix4::new(size, FftDirection::Forward);
         let buffer = vec![0f32.into(); size].into();
@@ -89,7 +89,7 @@ impl Analyzer {
 
         let input = Buffer::new(size);
 
-        let window = window::get(window);
+        let windowing = window::get(windowing);
 
         let smoother = Smoother::new(smooth, size);
 
@@ -98,7 +98,12 @@ impl Analyzer {
 
         let dbs = (min, max);
 
-        Analyzer { fft, scratch, buffer, input, window, smoother, time, frequency, dbs }
+        Analyzer { fft, scratch, buffer, input, windowing, smoother, time, frequency, dbs }
+    }
+
+    #[wasm_bindgen]
+    pub fn change_windowing(&mut self, windowing: u8) {
+        self.windowing = window::get(windowing)
     }
 
     #[wasm_bindgen]
@@ -113,11 +118,11 @@ impl Analyzer {
             .zip(&*self.input.buffer)
             .for_each(|(d, s)| *d = (128f32 * (1f32 + s)) as u8);
 
-        let window = self.window;
+        let w = self.windowing;
         let len = self.input.buffer.len() as f32;
         self.input.buffer.iter()
             .enumerate()
-            .map(|(n, &v)| v * window((n as f32) / len))
+            .map(|(n, &v)| v * w((n as f32) / len))
             .zip(self.buffer.iter_mut())
             .for_each(|(s, d)| *d = s.into());
 
