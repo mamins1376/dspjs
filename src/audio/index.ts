@@ -410,7 +410,7 @@ class WorkletAnalyzerNode extends AudioWorkletNode implements AnalyserNode, Requ
     this.fftSize = options?.fftSize ?? 2048;
     this.maxDecibels = options?.maxDecibels ?? -30;
     this.minDecibels = options?.minDecibels ?? -100;
-    this.smoothingTimeConstant = options?.smoothingTimeConstant ?? 0.8;
+    this.smoothingTimeConstant = options?.smoothingTimeConstant ?? 0.5;
     this.windowing = options?.windowing ?? Windowing.Default;
 
     this.bytes = Array(2) as Tuple<Uint8Array, 2>;
