@@ -13,7 +13,7 @@ import {
 
 import { h, RefObject } from "preact";
 
-import AudioHighlight, { start, end, file } from "highlight:./wasm/lib:97,120";
+import AudioHighlight, { start, end, file } from "highlight:./wasm/lib:117,141";
 
 export default () => (
   <div class="frame">

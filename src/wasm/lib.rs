@@ -40,6 +40,24 @@ impl Buffer {
     }
 }
 
+struct Smoother {
+    buffer: Box<[f32]>,
+    factor: f32,
+}
+
+impl Smoother {
+    fn new(factor: f32, size: usize) -> Self {
+        let buffer = vec![0f32.into(); size].into();
+        Self { buffer, factor }
+    }
+
+    fn smooth(&mut self, i: usize, v: f32) -> f32 {
+        self.buffer[i] = self.buffer[i] * self.factor
+            + (1f32 - self.factor) * v;
+        self.buffer[i]
+    }
+}
+
 #[wasm_bindgen]
 pub struct Analyzer {
     fft: Radix4<f32>,
@@ -49,9 +67,9 @@ pub struct Analyzer {
 
     input: Buffer,
 
-    smoothing: f32,
-
     windowing: fn(f32) -> f32,
+
+    smoother: Smoother,
 
     time: Box<[u8]>,
     frequency: Box<[u8]>,
@@ -61,7 +79,7 @@ pub struct Analyzer {
 #[wasm_bindgen]
 impl Analyzer {
     #[wasm_bindgen(constructor)]
-    pub fn new(size: usize, max: f32, min: f32, smoothing: f32, windowing: u8) -> Analyzer {
+    pub fn new(size: usize, max: f32, min: f32, smooth: f32, windowing: u8) -> Analyzer {
 
         let fft = Radix4::new(size, FftDirection::Forward);
         let buffer = vec![0f32.into(); size].into();
@@ -73,12 +91,14 @@ impl Analyzer {
 
         let windowing = window::get(windowing);
 
+        let smoother = Smoother::new(smooth, size);
+
         let time = vec![0; size].into();
         let frequency = vec![0; size >> 1].into();
 
         let dbs = (min, max);
 
-        Analyzer { fft, scratch, buffer, input, windowing, smoothing, time, frequency, dbs }
+        Analyzer { fft, scratch, buffer, input, windowing, smoother, time, frequency, dbs }
     }
 
     #[wasm_bindgen]
@@ -110,10 +130,11 @@ impl Analyzer {
 
         let (l, h) = self.dbs;
         let scale = 255f32 / (h - l);
-        let (mut vp, sm) = (0f32, self.smoothing);
+        let sm = &mut self.smoother;
         self.buffer.iter()
             .map(|c| c.norm() / len)
-            .map(|v| { vp = vp * sm + v * (1f32 - sm); vp })
+            .enumerate()
+            .map(|(i, v)| sm.smooth(i, v))
             .map(|v| v.log10() * 20f32)
             .map(|v| scale * (v - l))
             .zip(self.frequency.iter_mut())
